@@ -1,5 +1,5 @@
 # 🌊 Water Quality Monitor v2.0
-> **Powered by JALIO TECHNOLOGIES** — Industrial-Grade, 4G/LTE-Connected Multi-Parameter Water Quality Intelligence Platform.
+> Industrial-Grade, 4G/LTE-Connected Multi-Parameter Water Quality Intelligence Platform.
 
 [![ESP32](https://img.shields.io/badge/Microcontroller-ESP32-blue?logo=espressif&logoColor=white)](https://www.espressif.com/)
 [![Cellular](https://img.shields.io/badge/Connectivity-4G%2FLTE%20(SIMA7670C)-orange?logo=4g&logoColor=white)]()
@@ -142,7 +142,7 @@ WaterQualityMonitor/
 │   ├── database.py            # SQLite WAL database engine & CSV logging
 │   ├── requirements.txt       # Python backend dependencies
 │   └── templates/
-│       └── index.html         # Live Glassmorphism Dashboard (JALIO TECHNOLOGIES)
+│       └── index.html         # Live Glassmorphism Dashboard
 ├── deploy/
 │   ├── setup_ec2.sh           # AWS EC2 automated setup script
 │   └── wqm-server.service     # Systemd production service unit
@@ -197,5 +197,5 @@ Credentials: Username: `admin` | Password: `waterquality`
 
 ## 📜 License & Citation
 
-Copyright © 2026 **JALIO TECHNOLOGIES** / **Samartha H M**.  
+Copyright © 2026 **Samartha H M**.  
 This project is licensed under the [MIT License](LICENSE).

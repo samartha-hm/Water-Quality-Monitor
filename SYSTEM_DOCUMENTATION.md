@@ -1,5 +1,5 @@
 # 🌊 Water Quality Monitor v2.0 — Complete System Documentation
-**Powered by JALIO TECHNOLOGIES**
+**Developed by Samartha H M**
 
 ---
 
@@ -20,7 +20,7 @@ Data is gathered by an **ESP32 microcontroller** using **phase-multiplexing** to
 
 | Parameter | Value / Setting | Description |
 |-----------|-----------------|-------------|
-| **Company Branding** | `JALIO TECHNOLOGIES` | System Provider |
+| **Author / Developer** | `Samartha H M` | Project Creator & Maintainer |
 | **AWS Server Public IP** | `52.72.99.15` | EC2 Instance IP |
 | **Dashboard URL** | `http://52.72.99.15:8000` | Web Interface |
 | **Dashboard Username** | `admin` | HTTP Basic Auth User |
@@ -173,7 +173,7 @@ WaterQualityMonitor/
 │   ├── sensor_data.db         # SQLite Database (readings, status, config)
 │   ├── requirements.txt       # Python dependencies
 │   └── templates/
-│       └── index.html         # Real-time Web Dashboard (JALIO TECHNOLOGIES)
+│       └── index.html         # Real-time Web Dashboard
 ├── LOCAL_SETUP.md             # Local testing guide
 ├── README.md                  # Quickstart guide
 └── SYSTEM_DOCUMENTATION.md    # Complete system documentation
