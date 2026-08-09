@@ -1,5 +1,5 @@
 # 🌊 Water Quality Monitor v2.0 — Complete System Documentation
-**Developed by Samartha H M**
+**R&D, System Architecture & Engineering by Samartha H M**
 
 ---
 
@@ -20,7 +20,7 @@ Data is gathered by an **ESP32 microcontroller** using **phase-multiplexing** to
 
 | Parameter | Value / Setting | Description |
 |-----------|-----------------|-------------|
-| **Author / Developer** | `Samartha H M` | Project Creator & Maintainer |
+| **R&D & Lead Architect** | `Samartha H M` | Research, Hardware Design & Software Development |
 | **AWS Server Public IP** | `52.72.99.15` | EC2 Instance IP |
 | **Dashboard URL** | `http://52.72.99.15:8000` | Web Interface |
 | **Dashboard Username** | `admin` | HTTP Basic Auth User |
