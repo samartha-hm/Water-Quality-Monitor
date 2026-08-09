@@ -1,0 +1,1048 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <title>Water Quality Monitor — Live Dashboard</title>
+    <meta name="description" content="Real-time multi-parameter water quality monitoring system with pH, TDS, Temperature, Turbidity, and Dissolved Oxygen tracking."/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* ========================================= */
+        /* DESIGN SYSTEM                             */
+        /* ========================================= */
+        :root {
+            --bg-primary: #0a0e1a;
+            --bg-secondary: #111827;
+            --bg-card: rgba(17, 24, 39, 0.7);
+            --bg-card-hover: rgba(30, 41, 59, 0.8);
+            --bg-glass: rgba(255, 255, 255, 0.04);
+            --border-glass: rgba(255, 255, 255, 0.08);
+            --border-glow: rgba(59, 130, 246, 0.3);
+
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+
+            --accent-blue: #3b82f6;
+            --accent-cyan: #06b6d4;
+            --accent-amber: #f59e0b;
+            --accent-violet: #8b5cf6;
+            --accent-emerald: #10b981;
+            --accent-rose: #f43f5e;
+            --accent-orange: #f97316;
+
+            --gradient-primary: linear-gradient(135deg, #3b82f6, #06b6d4);
+            --gradient-card: linear-gradient(145deg, rgba(30, 41, 59, 0.6), rgba(17, 24, 39, 0.8));
+
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-xl: 20px;
+
+            --shadow-card: 0 8px 32px rgba(0, 0, 0, 0.4);
+            --shadow-glow-blue: 0 0 30px rgba(59, 130, 246, 0.15);
+            --shadow-glow-cyan: 0 0 30px rgba(6, 182, 212, 0.15);
+
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+            --sidebar-width: 240px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background:
+                radial-gradient(ellipse at 20% 20%, rgba(59, 130, 246, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(6, 182, 212, 0.06) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 50%, rgba(139, 92, 246, 0.04) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ========================================= */
+        /* LAYOUT: SIDEBAR + MAIN                    */
+        /* ========================================= */
+        .app-layout {
+            display: flex;
+            min-height: 100vh;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* SIDEBAR */
+        .sidebar {
+            width: var(--sidebar-width);
+            background: linear-gradient(180deg, #111827 0%, #0d1117 100%);
+            border-right: 1px solid var(--border-glass);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            top: 0; left: 0; bottom: 0;
+            z-index: 100;
+            overflow-y: auto;
+        }
+
+        .sidebar-brand {
+            padding: 1.5rem 1.25rem;
+            border-bottom: 1px solid var(--border-glass);
+        }
+
+        .sidebar-brand h2 {
+            font-size: 1.1rem;
+            font-weight: 700;
+            background: var(--gradient-primary);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .sidebar-brand span {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            font-family: 'Fira Code', monospace;
+        }
+
+        .sidebar-nav {
+            padding: 1rem 0;
+            flex: 1;
+        }
+
+        .sidebar-label {
+            font-size: 0.65rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+            padding: 0.75rem 1.25rem 0.4rem;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 1.25rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: var(--transition);
+            border-left: 3px solid transparent;
+            font-size: 0.875rem;
+            text-decoration: none;
+        }
+
+        .nav-item:hover {
+            background: rgba(59, 130, 246, 0.08);
+            color: var(--text-primary);
+        }
+
+        .nav-item.active {
+            background: rgba(59, 130, 246, 0.12);
+            color: var(--accent-blue);
+            border-left-color: var(--accent-blue);
+        }
+
+        .nav-item i { width: 18px; text-align: center; font-size: 0.9rem; }
+
+        /* ESP32 Status Block */
+        .sidebar-device-status {
+            margin: 1rem;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-md);
+            font-size: 0.75rem;
+        }
+
+        .sidebar-device-status .device-label {
+            font-size: 0.6rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--accent-blue);
+            margin-bottom: 0.5rem;
+        }
+
+        .sidebar-device-status .device-status-text {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 0.3rem;
+        }
+
+        .sidebar-device-status .device-meta {
+            color: var(--text-muted);
+            font-family: 'Fira Code', monospace;
+            font-size: 0.65rem;
+            line-height: 1.6;
+        }
+
+        /* MAIN CONTENT */
+        .main-content {
+            margin-left: var(--sidebar-width);
+            flex: 1;
+            padding: 1.5rem 2rem;
+            max-width: calc(100% - var(--sidebar-width));
+        }
+
+        /* PAGE TABS */
+        .page { display: none; }
+        .page.active { display: block; }
+
+        /* ========================================= */
+        /* STATUS BAR (for monitor page)             */
+        /* ========================================= */
+        .status-bar {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 1.5rem;
+            padding: 0.85rem 1.5rem;
+            background: var(--bg-glass);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-lg);
+            backdrop-filter: blur(20px);
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .status-item { display: flex; align-items: center; gap: 0.4rem; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+        .status-dot.online { background: var(--accent-emerald); box-shadow: 0 0 8px var(--accent-emerald); animation: pulse-dot 2s infinite; }
+        .status-dot.offline { background: var(--accent-rose); box-shadow: 0 0 8px var(--accent-rose); }
+
+        @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+        /* ========================================= */
+        /* GAUGE CARDS                               */
+        /* ========================================= */
+        .gauges-section { margin-bottom: 2rem; }
+        .section-title {
+            font-size: 1.25rem; font-weight: 600; margin-bottom: 1.25rem;
+            display: flex; align-items: center; gap: 0.5rem; color: var(--text-primary);
+        }
+        .gauges-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1.25rem; }
+        .gauge-card {
+            background: var(--gradient-card); border: 1px solid var(--border-glass);
+            border-radius: var(--radius-lg); padding: 1.5rem 1rem; text-align: center;
+            backdrop-filter: blur(10px); box-shadow: var(--shadow-card);
+            transition: var(--transition); position: relative; overflow: hidden;
+        }
+        .gauge-card::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+            border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+        }
+        .gauge-card.ph::before    { background: var(--accent-blue); }
+        .gauge-card.tds::before   { background: var(--accent-cyan); }
+        .gauge-card.temp::before  { background: var(--accent-amber); }
+        .gauge-card.turb::before  { background: var(--accent-violet); }
+        .gauge-card.do::before    { background: var(--accent-emerald); }
+        .gauge-card:hover { border-color: var(--border-glow); transform: translateY(-4px); box-shadow: var(--shadow-card), var(--shadow-glow-blue); }
+        .gauge-label { font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-secondary); margin-bottom: 1rem; }
+        .gauge-svg-wrapper { position: relative; width: 130px; height: 130px; margin: 0 auto 0.75rem; }
+        .gauge-svg-wrapper svg { transform: rotate(-90deg); }
+        .gauge-svg-wrapper circle { fill: none; stroke-width: 8; }
+        .gauge-svg-wrapper .bg-ring { stroke: rgba(255, 255, 255, 0.06); }
+        .gauge-svg-wrapper .progress-ring { stroke-linecap: round; transition: stroke-dasharray 0.8s cubic-bezier(0.4, 0, 0.2, 1); }
+        .gauge-value { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 1.65rem; font-weight: 700; color: var(--text-primary); line-height: 1; }
+        .gauge-value .unit { display: block; font-size: 0.65rem; font-weight: 400; color: var(--text-muted); margin-top: 0.25rem; }
+        .gauge-status { display: inline-block; font-size: 0.7rem; font-weight: 600; padding: 0.2rem 0.65rem; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.05em; }
+
+        /* ========================================= */
+        /* CHARTS                                    */
+        /* ========================================= */
+        .charts-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.25rem; margin-bottom: 2rem; }
+        .chart-card { background: var(--gradient-card); border: 1px solid var(--border-glass); border-radius: var(--radius-lg); padding: 1.5rem; backdrop-filter: blur(10px); box-shadow: var(--shadow-card); }
+        .chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+        .chart-title { font-size: 0.95rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem; }
+        .time-select { padding: 0.4rem 0.75rem; background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: var(--radius-sm); color: var(--accent-blue); font-size: 0.8rem; font-weight: 500; cursor: pointer; font-family: 'Inter', sans-serif; transition: var(--transition); }
+        .time-select:hover { background: rgba(59, 130, 246, 0.25); }
+        .time-select option { background: var(--bg-secondary); color: var(--text-primary); }
+        .chart-canvas-wrapper { position: relative; height: 220px; }
+
+        /* ========================================= */
+        /* BADGE CLASSES                             */
+        /* ========================================= */
+        .badge { display: inline-block; padding: 0.2rem 0.7rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; min-width: 70px; text-align: center; }
+        .badge-excellent  { background: rgba(16, 185, 129, 0.2); color: var(--accent-emerald); border: 1px solid rgba(16, 185, 129, 0.3); }
+        .badge-good       { background: rgba(59, 130, 246, 0.2); color: var(--accent-blue); border: 1px solid rgba(59, 130, 246, 0.3); }
+        .badge-fair       { background: rgba(245, 158, 11, 0.2); color: var(--accent-amber); border: 1px solid rgba(245, 158, 11, 0.3); }
+        .badge-poor       { background: rgba(249, 115, 22, 0.2); color: var(--accent-orange); border: 1px solid rgba(249, 115, 22, 0.3); }
+        .badge-danger     { background: rgba(244, 63, 94, 0.2); color: var(--accent-rose); border: 1px solid rgba(244, 63, 94, 0.3); }
+        .badge-optimal    { background: rgba(16, 185, 129, 0.2); color: var(--accent-emerald); border: 1px solid rgba(16, 185, 129, 0.3); }
+        .badge-safe       { background: rgba(59, 130, 246, 0.2); color: var(--accent-blue); border: 1px solid rgba(59, 130, 246, 0.3); }
+        .badge-caution    { background: rgba(245, 158, 11, 0.2); color: var(--accent-amber); border: 1px solid rgba(245, 158, 11, 0.3); }
+        .badge-unsafe     { background: rgba(244, 63, 94, 0.2); color: var(--accent-rose); border: 1px solid rgba(244, 63, 94, 0.3); }
+
+        /* ========================================= */
+        /* SETTINGS PAGE                             */
+        /* ========================================= */
+        .settings-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; }
+        .settings-card {
+            background: var(--gradient-card); border: 1px solid var(--border-glass);
+            border-radius: var(--radius-lg); padding: 1.5rem; backdrop-filter: blur(10px);
+            box-shadow: var(--shadow-card);
+        }
+        .settings-card h3 {
+            font-size: 0.95rem; font-weight: 600; margin-bottom: 1.25rem;
+            display: flex; align-items: center; gap: 0.5rem; color: var(--text-primary);
+        }
+        .setting-row {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0.75rem 0; border-bottom: 1px solid var(--border-glass);
+        }
+        .setting-row:last-child { border-bottom: none; }
+        .setting-label {
+            font-size: 0.85rem; color: var(--text-secondary);
+        }
+        .setting-label small { display: block; font-size: 0.7rem; color: var(--text-muted); margin-top: 0.15rem; }
+        .setting-control { display: flex; align-items: center; gap: 0.75rem; }
+        .setting-input {
+            width: 90px; padding: 0.4rem 0.6rem; background: rgba(255,255,255,0.06);
+            border: 1px solid var(--border-glass); border-radius: var(--radius-sm);
+            color: var(--text-primary); font-family: 'Fira Code', monospace; font-size: 0.8rem;
+            text-align: right; transition: var(--transition);
+        }
+        .setting-input:focus { outline: none; border-color: var(--accent-blue); box-shadow: 0 0 0 2px rgba(59,130,246,0.2); }
+        .setting-unit { font-size: 0.75rem; color: var(--text-muted); min-width: 28px; }
+        .setting-slider {
+            -webkit-appearance: none; appearance: none; width: 120px; height: 4px;
+            background: rgba(255,255,255,0.1); border-radius: 2px; outline: none;
+        }
+        .setting-slider::-webkit-slider-thumb {
+            -webkit-appearance: none; appearance: none; width: 16px; height: 16px;
+            background: var(--accent-blue); border-radius: 50%; cursor: pointer;
+            box-shadow: 0 0 8px rgba(59,130,246,0.4);
+        }
+
+        /* Toggle switch */
+        .toggle-switch { position: relative; width: 48px; height: 26px; cursor: pointer; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .toggle-slider {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(255,255,255,0.1); border-radius: 13px;
+            transition: var(--transition);
+        }
+        .toggle-slider::before {
+            content: ''; position: absolute; width: 20px; height: 20px;
+            left: 3px; bottom: 3px; background: var(--text-secondary);
+            border-radius: 50%; transition: var(--transition);
+        }
+        .toggle-switch input:checked + .toggle-slider { background: var(--accent-blue); }
+        .toggle-switch input:checked + .toggle-slider::before { transform: translateX(22px); background: white; }
+
+        /* Action buttons */
+        .btn {
+            padding: 0.6rem 1.5rem; border: none; border-radius: var(--radius-sm);
+            font-family: 'Inter', sans-serif; font-size: 0.85rem; font-weight: 600;
+            cursor: pointer; transition: var(--transition); display: inline-flex;
+            align-items: center; gap: 0.5rem;
+        }
+        .btn-primary { background: var(--accent-blue); color: white; }
+        .btn-primary:hover { background: #2563eb; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(59,130,246,0.3); }
+        .btn-danger { background: var(--accent-rose); color: white; }
+        .btn-danger:hover { background: #e11d48; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(244,63,94,0.3); }
+        .btn-secondary { background: rgba(255,255,255,0.08); color: var(--text-secondary); border: 1px solid var(--border-glass); }
+        .btn-secondary:hover { background: rgba(255,255,255,0.12); color: var(--text-primary); }
+
+        .settings-actions {
+            display: flex; gap: 1rem; margin-top: 1.5rem; justify-content: flex-end;
+        }
+
+        /* ========================================= */
+        /* DEVICE STATUS PAGE                        */
+        /* ========================================= */
+        .device-info-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; }
+        .device-info-card {
+            background: var(--gradient-card); border: 1px solid var(--border-glass);
+            border-radius: var(--radius-lg); padding: 1.5rem; text-align: center;
+        }
+        .device-info-card .info-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 0.5rem; }
+        .device-info-card .info-value { font-size: 1.8rem; font-weight: 700; }
+        .device-info-card .info-sub { font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem; }
+
+        /* ========================================= */
+        /* REFERENCE TABLES                          */
+        /* ========================================= */
+        .reference-section {
+            background: var(--gradient-card); border: 1px solid var(--border-glass);
+            border-radius: var(--radius-lg); padding: 2rem; backdrop-filter: blur(10px);
+            box-shadow: var(--shadow-card); margin-bottom: 2rem;
+        }
+        .ref-table { width: 100%; border-collapse: collapse; margin-bottom: 1.5rem; }
+        .ref-table th, .ref-table td { padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid var(--border-glass); font-size: 0.85rem; }
+        .ref-table th { background: rgba(255, 255, 255, 0.04); font-weight: 600; color: var(--text-secondary); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; }
+        .ref-table td { color: var(--text-primary); }
+        .ref-sub-title { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 0.75rem; color: var(--text-primary); }
+        .info-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; margin-top: 1.5rem; }
+        .info-card { background: var(--bg-glass); border: 1px solid var(--border-glass); padding: 1.25rem; border-radius: var(--radius-md); border-left: 3px solid; }
+        .info-card.drinking    { border-left-color: var(--accent-emerald); }
+        .info-card.swimming    { border-left-color: var(--accent-cyan); }
+        .info-card.agriculture { border-left-color: var(--accent-violet); }
+        .info-card h4 { font-size: 0.95rem; margin-bottom: 0.4rem; }
+        .info-card p { font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5; }
+
+        /* ========================================= */
+        /* TOAST NOTIFICATIONS                       */
+        /* ========================================= */
+        .toast-container { position: fixed; top: 1.5rem; right: 1.5rem; z-index: 10000; display: flex; flex-direction: column; gap: 0.75rem; }
+        .toast {
+            padding: 0.85rem 1.25rem; border-radius: var(--radius-md);
+            font-size: 0.85rem; font-weight: 500; display: flex; align-items: center; gap: 0.75rem;
+            backdrop-filter: blur(20px); box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+            animation: slideIn 0.3s ease-out; min-width: 280px;
+        }
+        .toast-success { background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); color: var(--accent-emerald); }
+        .toast-error { background: rgba(244, 63, 94, 0.15); border: 1px solid rgba(244, 63, 94, 0.3); color: var(--accent-rose); }
+        .toast-info { background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.3); color: var(--accent-blue); }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+        /* CONFIRM MODAL */
+        .modal-overlay {
+            display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7); z-index: 9999; align-items: center; justify-content: center;
+        }
+        .modal-overlay.show { display: flex; }
+        .modal {
+            background: var(--bg-secondary); border: 1px solid var(--border-glass);
+            border-radius: var(--radius-lg); padding: 2rem; max-width: 420px; width: 90%;
+            text-align: center; box-shadow: 0 16px 64px rgba(0,0,0,0.5);
+        }
+        .modal h3 { margin-bottom: 0.75rem; }
+        .modal p { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.5rem; }
+        .modal-actions { display: flex; gap: 1rem; justify-content: center; }
+
+        /* FOOTER */
+        .footer { text-align: center; padding: 2rem 0; color: var(--text-muted); font-size: 0.8rem; }
+
+        /* RESPONSIVE */
+        @media (max-width: 1200px) { .gauges-grid { grid-template-columns: repeat(3, 1fr); } .settings-grid { grid-template-columns: 1fr; } .device-info-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 900px) { .gauges-grid { grid-template-columns: repeat(2, 1fr); } .charts-grid { grid-template-columns: 1fr; } }
+        @media (max-width: 768px) {
+            .sidebar { width: 100%; height: auto; position: relative; border-right: none; border-bottom: 1px solid var(--border-glass); }
+            .sidebar-nav { display: flex; overflow-x: auto; padding: 0.5rem; }
+            .nav-item { white-space: nowrap; border-left: none; border-bottom: 3px solid transparent; padding: 0.5rem 1rem; font-size: 0.8rem; }
+            .nav-item.active { border-left-color: transparent; border-bottom-color: var(--accent-blue); }
+            .sidebar-device-status { display: none; }
+            .sidebar-label { display: none; }
+            .main-content { margin-left: 0; max-width: 100%; padding: 1rem; }
+            .app-layout { flex-direction: column; }
+        }
+        @media (max-width: 600px) { .gauges-grid { grid-template-columns: 1fr; } .device-info-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+<!-- TOAST CONTAINER -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- RESTART CONFIRM MODAL -->
+<div class="modal-overlay" id="restartModal">
+    <div class="modal">
+        <h3>⚠️ Restart Device</h3>
+        <p>This will reboot the ESP32 and reconnect to the 4G network. The device will be offline for ~20 seconds.</p>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="closeRestartModal()">Cancel</button>
+            <button class="btn btn-danger" onclick="confirmRestart()"><i class="fa-solid fa-power-off"></i> Restart Now</button>
+        </div>
+    </div>
+</div>
+
+<div class="app-layout">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <h2>💧 WQ Monitor</h2>
+            <span>v2.0.0 — 4G/LTE</span>
+        </div>
+
+        <nav class="sidebar-nav">
+            <div class="sidebar-label">Monitoring</div>
+            <a class="nav-item active" data-page="monitor" onclick="switchPage('monitor')">
+                <i class="fa-solid fa-chart-line"></i> Live Monitor
+            </a>
+            <a class="nav-item" data-page="reference" onclick="switchPage('reference')">
+                <i class="fa-solid fa-book"></i> Reference
+            </a>
+
+            <div class="sidebar-label" style="margin-top: 1rem;">Management</div>
+            <a class="nav-item" data-page="settings" onclick="switchPage('settings')">
+                <i class="fa-solid fa-sliders"></i> Settings
+            </a>
+            <a class="nav-item" data-page="device" onclick="switchPage('device')">
+                <i class="fa-solid fa-microchip"></i> Device Status
+            </a>
+        </nav>
+
+        <!-- Device Status Block -->
+        <div class="sidebar-device-status">
+            <div class="device-label">Device WQM-001</div>
+            <div class="device-status-text" id="sidebarStatus" style="color: var(--accent-emerald);">ONLINE</div>
+            <div class="device-meta">
+                Signal: <span id="sidebarSignal">--</span>/31<br>
+                Uptime: <span id="sidebarUptime">--</span><br>
+                Last: <span id="sidebarLast">--:--:--</span>
+            </div>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <div class="main-content">
+
+        <!-- =========== PAGE: LIVE MONITOR =========== -->
+        <div class="page active" id="page-monitor">
+            <h1 style="font-size: 1.75rem; font-weight: 800; margin-bottom: 0.5rem; background: var(--gradient-primary); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+                Live Dashboard
+            </h1>
+            <p style="color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 0.9rem;">Real-time multi-parameter water quality monitoring — 4G/LTE connected</p>
+
+            <!-- STATUS BAR -->
+            <div class="status-bar">
+                <div class="status-item"><span class="status-dot online" id="statusDot"></span><span id="statusText">Connected — System Active</span></div>
+                <div class="status-item">📡 Signal: <strong id="signalQuality">--</strong>/31</div>
+                <div class="status-item">🌡️ Temp: <strong id="currentTemp">--</strong>°C</div>
+                <div class="status-item">🕒 Last: <strong id="lastUpdate">--:--:--</strong></div>
+                <div class="status-item">📊 Points: <strong id="dataPoints">0</strong></div>
+                <div class="status-item">⏱️ Uptime: <strong id="deviceUptime">--</strong></div>
+            </div>
+
+            <!-- GAUGE CARDS -->
+            <div class="gauges-section">
+                <h2 class="section-title">📊 Current Readings</h2>
+                <div class="gauges-grid">
+                    <div class="gauge-card ph"><div class="gauge-label">pH Level</div><div class="gauge-svg-wrapper"><svg width="130" height="130"><circle class="bg-ring" cx="65" cy="65" r="55"></circle><circle class="progress-ring" id="phRing" cx="65" cy="65" r="55" stroke-dasharray="0 345.6" style="stroke: var(--accent-blue);"></circle></svg><div class="gauge-value" id="phValue">--<span class="unit">pH</span></div></div><div class="gauge-status" id="phStatus">--</div></div>
+                    <div class="gauge-card tds"><div class="gauge-label">TDS Level</div><div class="gauge-svg-wrapper"><svg width="130" height="130"><circle class="bg-ring" cx="65" cy="65" r="55"></circle><circle class="progress-ring" id="tdsRing" cx="65" cy="65" r="55" stroke-dasharray="0 345.6" style="stroke: var(--accent-cyan);"></circle></svg><div class="gauge-value" id="tdsValue">--<span class="unit">ppm</span></div></div><div class="gauge-status" id="tdsStatus">--</div></div>
+                    <div class="gauge-card temp"><div class="gauge-label">Temperature</div><div class="gauge-svg-wrapper"><svg width="130" height="130"><circle class="bg-ring" cx="65" cy="65" r="55"></circle><circle class="progress-ring" id="tempRing" cx="65" cy="65" r="55" stroke-dasharray="0 345.6" style="stroke: var(--accent-amber);"></circle></svg><div class="gauge-value" id="tempValue">--<span class="unit">°C</span></div></div><div class="gauge-status" id="tempStatus">--</div></div>
+                    <div class="gauge-card turb"><div class="gauge-label">Turbidity</div><div class="gauge-svg-wrapper"><svg width="130" height="130"><circle class="bg-ring" cx="65" cy="65" r="55"></circle><circle class="progress-ring" id="turbRing" cx="65" cy="65" r="55" stroke-dasharray="0 345.6" style="stroke: var(--accent-violet);"></circle></svg><div class="gauge-value" id="turbValue">--<span class="unit">NTU</span></div></div><div class="gauge-status" id="turbStatus">--</div></div>
+                    <div class="gauge-card do"><div class="gauge-label">Dissolved O₂</div><div class="gauge-svg-wrapper"><svg width="130" height="130"><circle class="bg-ring" cx="65" cy="65" r="55"></circle><circle class="progress-ring" id="doRing" cx="65" cy="65" r="55" stroke-dasharray="0 345.6" style="stroke: var(--accent-emerald);"></circle></svg><div class="gauge-value" id="doValue">--<span class="unit">mg/L</span></div></div><div class="gauge-status" id="doStatus">--</div></div>
+                </div>
+            </div>
+
+            <!-- CHARTS -->
+            <div class="charts-grid">
+                <div class="chart-card"><div class="chart-header"><h3 class="chart-title">📈 pH Level</h3><select class="time-select" id="phTimeRange" onchange="fetchHistory()"><option value="10080" selected>All Time</option><option value="5">5 min</option><option value="15">15 min</option><option value="30">30 min</option><option value="60">1 hour</option><option value="1440">1 day</option></select></div><div class="chart-canvas-wrapper"><canvas id="phChart"></canvas></div></div>
+                <div class="chart-card"><div class="chart-header"><h3 class="chart-title">📊 TDS Level</h3><select class="time-select" id="tdsTimeRange" onchange="fetchHistory()"><option value="10080" selected>All Time</option><option value="5">5 min</option><option value="15">15 min</option><option value="30">30 min</option><option value="60">1 hour</option><option value="1440">1 day</option></select></div><div class="chart-canvas-wrapper"><canvas id="tdsChart"></canvas></div></div>
+                <div class="chart-card"><div class="chart-header"><h3 class="chart-title">🌡️ Temperature</h3><select class="time-select" id="tempTimeRange" onchange="fetchHistory()"><option value="10080" selected>All Time</option><option value="5">5 min</option><option value="15">15 min</option><option value="30">30 min</option><option value="60">1 hour</option><option value="1440">1 day</option></select></div><div class="chart-canvas-wrapper"><canvas id="tempChart"></canvas></div></div>
+                <div class="chart-card"><div class="chart-header"><h3 class="chart-title">🌫️ Turbidity</h3><select class="time-select" id="turbTimeRange" onchange="fetchHistory()"><option value="10080" selected>All Time</option><option value="5">5 min</option><option value="15">15 min</option><option value="30">30 min</option><option value="60">1 hour</option><option value="1440">1 day</option></select></div><div class="chart-canvas-wrapper"><canvas id="turbChart"></canvas></div></div>
+                <div class="chart-card" style="grid-column: 1 / -1;"><div class="chart-header"><h3 class="chart-title">💨 Dissolved Oxygen</h3><select class="time-select" id="doTimeRange" onchange="fetchHistory()"><option value="10080" selected>All Time</option><option value="5">5 min</option><option value="15">15 min</option><option value="30">30 min</option><option value="60">1 hour</option><option value="1440">1 day</option></select></div><div class="chart-canvas-wrapper"><canvas id="doChart"></canvas></div></div>
+            </div>
+        </div>
+
+        <!-- =========== PAGE: REFERENCE =========== -->
+        <div class="page" id="page-reference">
+            <h1 style="font-size: 1.75rem; font-weight: 800; margin-bottom: 1.5rem; color: var(--text-primary);">🧪 Water Quality Reference</h1>
+            <div class="reference-section">
+                <h3 class="ref-sub-title">pH Level</h3>
+                <table class="ref-table"><thead><tr><th>Range</th><th>Level</th><th>Examples</th><th>Safety</th></tr></thead><tbody>
+                <tr><td><strong>0 – 3.0</strong></td><td><span class="badge badge-danger">Strongly Acidic</span></td><td>Battery acid, Lemon juice</td><td><span class="badge badge-unsafe">Dangerous</span></td></tr>
+                <tr><td><strong>3.1 – 5.0</strong></td><td><span class="badge badge-poor">Acidic</span></td><td>Coffee, Orange juice</td><td><span class="badge badge-unsafe">Corrosive</span></td></tr>
+                <tr><td><strong>5.1 – 6.4</strong></td><td><span class="badge badge-caution">Weakly Acidic</span></td><td>Rain water, Milk</td><td><span class="badge badge-safe">Safe</span></td></tr>
+                <tr><td><strong>6.5 – 7.5</strong></td><td><span class="badge badge-excellent">Neutral</span></td><td>Pure water, Blood</td><td><span class="badge badge-optimal">Optimal</span></td></tr>
+                <tr><td><strong>7.6 – 8.5</strong></td><td><span class="badge badge-good">Weakly Alkaline</span></td><td>Sea water, Baking soda</td><td><span class="badge badge-safe">Safe</span></td></tr>
+                <tr><td><strong>8.6 – 10.0</strong></td><td><span class="badge badge-caution">Alkaline</span></td><td>Soap solution</td><td><span class="badge badge-caution">Caution</span></td></tr>
+                <tr><td><strong>10.1 – 14.0</strong></td><td><span class="badge badge-danger">Strongly Alkaline</span></td><td>Ammonia, Bleach</td><td><span class="badge badge-unsafe">Dangerous</span></td></tr>
+                </tbody></table>
+                <h3 class="ref-sub-title">TDS (Total Dissolved Solids)</h3>
+                <table class="ref-table"><thead><tr><th>Range (ppm)</th><th>Quality</th><th>Description</th><th>Suitability</th></tr></thead><tbody>
+                <tr><td><strong>0 – 50</strong></td><td><span class="badge badge-excellent">Excellent</span></td><td>Very pure water</td><td>Distilled / Medical</td></tr>
+                <tr><td><strong>51 – 150</strong></td><td><span class="badge badge-good">Good</span></td><td>Good for drinking</td><td>Drinking / Cooking</td></tr>
+                <tr><td><strong>151 – 300</strong></td><td><span class="badge badge-fair">Fair</span></td><td>Acceptable</td><td>General use</td></tr>
+                <tr><td><strong>301 – 600</strong></td><td><span class="badge badge-poor">Poor</span></td><td>Not ideal</td><td>Industrial</td></tr>
+                <tr><td><strong>601 – 1000</strong></td><td><span class="badge badge-danger">Very Poor</span></td><td>Unacceptable</td><td>Treatment needed</td></tr>
+                </tbody></table>
+                <h3 class="ref-sub-title">Dissolved Oxygen</h3>
+                <table class="ref-table"><thead><tr><th>DO (mg/L)</th><th>Quality</th><th>Description</th><th>Aquatic Impact</th></tr></thead><tbody>
+                <tr><td><strong>8+</strong></td><td><span class="badge badge-excellent">Excellent</span></td><td>Highly oxygenated</td><td>Optimal for all life</td></tr>
+                <tr><td><strong>5 – 8</strong></td><td><span class="badge badge-good">Good</span></td><td>Well oxygenated</td><td>Good for most fish</td></tr>
+                <tr><td><strong>3 – 5</strong></td><td><span class="badge badge-fair">Fair</span></td><td>Moderate</td><td>Stressful for sensitive species</td></tr>
+                <tr><td><strong>1 – 3</strong></td><td><span class="badge badge-poor">Poor</span></td><td>Low oxygen</td><td>Harmful to most</td></tr>
+                <tr><td><strong>0 – 1</strong></td><td><span class="badge badge-danger">Critical</span></td><td>Depleted</td><td>Fish kills likely</td></tr>
+                </tbody></table>
+                <div class="info-cards">
+                    <div class="info-card drinking"><h4>🚰 Drinking Water (WHO)</h4><p>pH: 6.5–8.5 &nbsp;|&nbsp; TDS: 50–300 ppm &nbsp;|&nbsp; Turbidity: &lt;1 NTU &nbsp;|&nbsp; DO: &gt;5 mg/L</p></div>
+                    <div class="info-card swimming"><h4>🏊 Pool Water</h4><p>pH: 7.2–7.8 &nbsp;|&nbsp; Temp: 26–28°C &nbsp;|&nbsp; Proper chlorination required</p></div>
+                    <div class="info-card agriculture"><h4>🌱 Agricultural Use</h4><p>pH: 6.0–7.5 &nbsp;|&nbsp; TDS: &lt;2000 ppm &nbsp;|&nbsp; Adequate DO for irrigation</p></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- =========== PAGE: SETTINGS =========== -->
+        <div class="page" id="page-settings">
+            <h1 style="font-size: 1.75rem; font-weight: 800; margin-bottom: 0.5rem; color: var(--text-primary);"><i class="fa-solid fa-sliders" style="color: var(--accent-blue);"></i> Device Settings</h1>
+            <p style="color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 0.9rem;">Configure device parameters remotely. Changes are pushed to the ESP32 over MQTT in real-time.</p>
+
+            <div class="settings-grid">
+                <!-- Timing Settings -->
+                <div class="settings-card">
+                    <h3><i class="fa-solid fa-clock" style="color: var(--accent-cyan);"></i> Data Collection</h3>
+                    <div class="setting-row"><div class="setting-label">Sensor Read Interval<small>How often sensors are sampled</small></div><div class="setting-control"><input type="range" class="setting-slider" id="cfg_sensor_read_interval" min="500" max="60000" step="500" value="2000" oninput="syncSlider(this, 'val_sensor_read')"><input type="number" class="setting-input" id="val_sensor_read" value="2000" onchange="syncInput(this, 'cfg_sensor_read_interval')"><span class="setting-unit">ms</span></div></div>
+                    <div class="setting-row"><div class="setting-label">MQTT Publish Interval<small>How often data is sent to cloud</small></div><div class="setting-control"><input type="range" class="setting-slider" id="cfg_mqtt_publish_interval" min="1000" max="120000" step="1000" value="5000" oninput="syncSlider(this, 'val_mqtt_publish')"><input type="number" class="setting-input" id="val_mqtt_publish" value="5000" onchange="syncInput(this, 'cfg_mqtt_publish_interval')"><span class="setting-unit">ms</span></div></div>
+                    <div class="setting-row"><div class="setting-label">Status Heartbeat Interval<small>Device health report frequency</small></div><div class="setting-control"><input type="range" class="setting-slider" id="cfg_status_publish_interval" min="10000" max="300000" step="5000" value="60000" oninput="syncSlider(this, 'val_status_publish')"><input type="number" class="setting-input" id="val_status_publish" value="60000" onchange="syncInput(this, 'cfg_status_publish_interval')"><span class="setting-unit">ms</span></div></div>
+                </div>
+
+                <!-- Phase Timing -->
+                <div class="settings-card">
+                    <h3><i class="fa-solid fa-arrows-spin" style="color: var(--accent-violet);"></i> Sensor Phasing</h3>
+                    <div class="setting-row"><div class="setting-label">pH Phase Duration<small>Time spent reading pH sensor</small></div><div class="setting-control"><input type="range" class="setting-slider" id="cfg_ph_phase_duration" min="1000" max="30000" step="500" value="5000" oninput="syncSlider(this, 'val_ph_phase')"><input type="number" class="setting-input" id="val_ph_phase" value="5000" onchange="syncInput(this, 'cfg_ph_phase_duration')"><span class="setting-unit">ms</span></div></div>
+                    <div class="setting-row"><div class="setting-label">Buffer Phase Duration<small>Settling time between pH and TDS</small></div><div class="setting-control"><input type="range" class="setting-slider" id="cfg_buffer_phase_duration" min="500" max="10000" step="250" value="2000" oninput="syncSlider(this, 'val_buffer_phase')"><input type="number" class="setting-input" id="val_buffer_phase" value="2000" onchange="syncInput(this, 'cfg_buffer_phase_duration')"><span class="setting-unit">ms</span></div></div>
+                    <div class="setting-row"><div class="setting-label">TDS Phase Duration<small>Time spent reading TDS sensor</small></div><div class="setting-control"><input type="range" class="setting-slider" id="cfg_tds_phase_duration" min="1000" max="30000" step="500" value="5000" oninput="syncSlider(this, 'val_tds_phase')"><input type="number" class="setting-input" id="val_tds_phase" value="5000" onchange="syncInput(this, 'cfg_tds_phase_duration')"><span class="setting-unit">ms</span></div></div>
+                </div>
+
+                <!-- Deep Sleep -->
+                <div class="settings-card">
+                    <h3><i class="fa-solid fa-moon" style="color: var(--accent-amber);"></i> Power Management</h3>
+                    <div class="setting-row"><div class="setting-label">Deep Sleep Mode<small>ESP32 sleeps between readings (saves power)</small></div><div class="setting-control"><label class="toggle-switch"><input type="checkbox" id="cfg_deep_sleep_enabled"><span class="toggle-slider"></span></label></div></div>
+                    <div class="setting-row"><div class="setting-label">Sleep Duration<small>How long the device sleeps (0 = disabled)</small></div><div class="setting-control"><input type="range" class="setting-slider" id="cfg_deep_sleep_duration_sec" min="0" max="3600" step="30" value="0" oninput="syncSlider(this, 'val_sleep_dur')"><input type="number" class="setting-input" id="val_sleep_dur" value="0" onchange="syncInput(this, 'cfg_deep_sleep_duration_sec')"><span class="setting-unit">sec</span></div></div>
+                    <div class="setting-row"><div class="setting-label">Dashboard Poll Interval<small>How often the web page refreshes</small></div><div class="setting-control"><input type="range" class="setting-slider" id="cfg_dashboard_poll_ms" min="1000" max="30000" step="500" value="3000" oninput="syncSlider(this, 'val_dash_poll')"><input type="number" class="setting-input" id="val_dash_poll" value="3000" onchange="syncInput(this, 'cfg_dashboard_poll_ms')"><span class="setting-unit">ms</span></div></div>
+                </div>
+
+                <!-- Device Commands -->
+                <div class="settings-card">
+                    <h3><i class="fa-solid fa-terminal" style="color: var(--accent-rose);"></i> Device Commands</h3>
+                    <div class="setting-row"><div class="setting-label">Restart Device<small>Reboots the ESP32 and reconnects to 4G</small></div><div class="setting-control"><button class="btn btn-danger" onclick="showRestartModal()"><i class="fa-solid fa-power-off"></i> Restart</button></div></div>
+                    <div class="setting-row"><div class="setting-label">Calibrate Sensors<small>Triggers sensor calibration routine</small></div><div class="setting-control"><button class="btn btn-secondary" onclick="sendCalibrate()"><i class="fa-solid fa-bullseye"></i> Calibrate</button></div></div>
+                    <div class="setting-row"><div class="setting-label">Refresh Config<small>Pull current config from device</small></div><div class="setting-control"><button class="btn btn-secondary" onclick="loadConfig()"><i class="fa-solid fa-rotate"></i> Refresh</button></div></div>
+                </div>
+            </div>
+
+            <div class="settings-actions">
+                <button class="btn btn-secondary" onclick="loadConfig()"><i class="fa-solid fa-rotate"></i> Reset to Device Values</button>
+                <button class="btn btn-primary" onclick="pushConfig()"><i class="fa-solid fa-paper-plane"></i> Push Config to Device</button>
+            </div>
+        </div>
+
+        <!-- =========== PAGE: DEVICE STATUS =========== -->
+        <div class="page" id="page-device">
+            <h1 style="font-size: 1.75rem; font-weight: 800; margin-bottom: 0.5rem; color: var(--text-primary);"><i class="fa-solid fa-microchip" style="color: var(--accent-emerald);"></i> Device Status</h1>
+            <p style="color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 0.9rem;">Hardware diagnostics and connectivity information for WQM-001</p>
+
+            <div class="device-info-grid">
+                <div class="device-info-card"><div class="info-label">Connection</div><div class="info-value" id="devStatus" style="color: var(--accent-emerald);">--</div><div class="info-sub">4G/LTE via Airtel</div></div>
+                <div class="device-info-card"><div class="info-label">Signal Quality</div><div class="info-value" id="devSignal" style="color: var(--accent-blue);">--</div><div class="info-sub">out of 31</div></div>
+                <div class="device-info-card"><div class="info-label">Uptime</div><div class="info-value" id="devUptime" style="color: var(--accent-cyan);">--</div><div class="info-sub">since last boot</div></div>
+                <div class="device-info-card"><div class="info-label">Free Heap</div><div class="info-value" id="devHeap" style="color: var(--accent-amber);">--</div><div class="info-sub">bytes available</div></div>
+                <div class="device-info-card"><div class="info-label">Firmware</div><div class="info-value" id="devFirmware" style="color: var(--accent-violet);">--</div><div class="info-sub">version</div></div>
+                <div class="device-info-card"><div class="info-label">Total Readings</div><div class="info-value" id="devReadings" style="color: var(--accent-orange);">--</div><div class="info-sub">stored in database</div></div>
+            </div>
+        </div>
+
+        <div class="footer">Water Quality Monitor v2.0 — 4G/LTE • MQTT • AWS &nbsp;|&nbsp; JALIO TECHNOLOGIES</div>
+    </div>
+</div>
+
+<!-- ================================================ -->
+<!-- JAVASCRIPT                                        -->
+<!-- ================================================ -->
+<script>
+    // ---- Page Navigation ----
+    function switchPage(pageName) {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        document.getElementById('page-' + pageName).classList.add('active');
+        document.querySelector(`.nav-item[data-page="${pageName}"]`).classList.add('active');
+
+        if (pageName === 'settings') loadConfig();
+        if (pageName === 'device') loadDeviceStatus();
+    }
+
+    // ---- Toast Notifications ----
+    function showToast(message, type = 'info') {
+        const container = document.getElementById('toastContainer');
+        const toast = document.createElement('div');
+        const icon = type === 'success' ? '✓' : type === 'error' ? '✗' : 'ℹ';
+        toast.className = `toast toast-${type}`;
+        toast.innerHTML = `<span>${icon}</span><span>${message}</span>`;
+        container.appendChild(toast);
+        setTimeout(() => { toast.style.opacity = '0'; toast.style.transform = 'translateX(100%)'; setTimeout(() => toast.remove(), 300); }, 4000);
+    }
+
+    // ---- Restart Modal ----
+    function showRestartModal() { document.getElementById('restartModal').classList.add('show'); }
+    function closeRestartModal() { document.getElementById('restartModal').classList.remove('show'); }
+    async function confirmRestart() {
+        closeRestartModal();
+        try {
+            const resp = await fetch('/api/command/restart', { method: 'POST' });
+            const data = await resp.json();
+            if (data.success) showToast('Restart command sent! Device rebooting...', 'success');
+            else showToast('Failed: ' + data.message, 'error');
+        } catch (e) { showToast('Network error: ' + e.message, 'error'); }
+    }
+
+    // ---- Settings Sync Helpers ----
+    function syncSlider(slider, inputId) { document.getElementById(inputId).value = slider.value; }
+    function syncInput(input, sliderId) { document.getElementById(sliderId).value = input.value; }
+
+    async function loadConfig() {
+        try {
+            const resp = await fetch('/api/config');
+            const cfg = await resp.json();
+            const map = {
+                sensor_read_interval: ['cfg_sensor_read_interval', 'val_sensor_read'],
+                mqtt_publish_interval: ['cfg_mqtt_publish_interval', 'val_mqtt_publish'],
+                status_publish_interval: ['cfg_status_publish_interval', 'val_status_publish'],
+                ph_phase_duration: ['cfg_ph_phase_duration', 'val_ph_phase'],
+                buffer_phase_duration: ['cfg_buffer_phase_duration', 'val_buffer_phase'],
+                tds_phase_duration: ['cfg_tds_phase_duration', 'val_tds_phase'],
+                deep_sleep_duration_sec: ['cfg_deep_sleep_duration_sec', 'val_sleep_dur'],
+                dashboard_poll_ms: ['cfg_dashboard_poll_ms', 'val_dash_poll'],
+            };
+            for (const [key, [sliderId, inputId]] of Object.entries(map)) {
+                if (cfg[key] !== undefined) {
+                    document.getElementById(sliderId).value = cfg[key];
+                    document.getElementById(inputId).value = cfg[key];
+                }
+            }
+            if (cfg.deep_sleep_enabled !== undefined) {
+                document.getElementById('cfg_deep_sleep_enabled').checked = cfg.deep_sleep_enabled;
+            }
+            showToast(`Config loaded (${cfg.source || 'defaults'})`, 'info');
+        } catch (e) { showToast('Failed to load config: ' + e.message, 'error'); }
+    }
+
+    async function pushConfig() {
+        const payload = {
+            sensor_read_interval: parseInt(document.getElementById('val_sensor_read').value),
+            mqtt_publish_interval: parseInt(document.getElementById('val_mqtt_publish').value),
+            status_publish_interval: parseInt(document.getElementById('val_status_publish').value),
+            ph_phase_duration: parseInt(document.getElementById('val_ph_phase').value),
+            buffer_phase_duration: parseInt(document.getElementById('val_buffer_phase').value),
+            tds_phase_duration: parseInt(document.getElementById('val_tds_phase').value),
+            deep_sleep_enabled: document.getElementById('cfg_deep_sleep_enabled').checked,
+            deep_sleep_duration_sec: parseInt(document.getElementById('val_sleep_dur').value),
+            dashboard_poll_ms: parseInt(document.getElementById('val_dash_poll').value),
+        };
+        try {
+            const resp = await fetch('/api/config', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+            const data = await resp.json();
+            if (data.success) {
+                showToast('Configuration pushed to device!', 'success');
+                // Update local poll interval
+                if (pollTimer) clearInterval(pollTimer);
+                POLL_INTERVAL = payload.dashboard_poll_ms;
+                startPolling();
+            } else showToast('Failed: ' + data.message, 'error');
+        } catch (e) { showToast('Network error: ' + e.message, 'error'); }
+    }
+
+    async function sendCalibrate() {
+        try {
+            const resp = await fetch('/api/command/calibrate', { method: 'POST' });
+            const data = await resp.json();
+            if (data.success) showToast('Calibration command sent!', 'success');
+            else showToast('Failed: ' + data.message, 'error');
+        } catch (e) { showToast('Network error: ' + e.message, 'error'); }
+    }
+
+    // ---- Device Status Page ----
+    async function loadDeviceStatus() {
+        try {
+            const [statusResp, statsResp] = await Promise.all([fetch('/api/status'), fetch('/api/stats')]);
+            const st = await statusResp.json();
+            const stats = await statsResp.json();
+
+            // Use unified staleness logic: check received_at from /api/status
+            const recAt = st.received_at ? new Date(st.received_at).getTime() : 0;
+            const isDeviceOnline = recAt > 0 && (Date.now() - recAt < 12000);
+            const statusLabel = isDeviceOnline ? 'ONLINE' : 'OFFLINE';
+
+            document.getElementById('devStatus').textContent = statusLabel;
+            document.getElementById('devStatus').style.color = isDeviceOnline ? 'var(--accent-emerald)' : 'var(--accent-rose)';
+            document.getElementById('devSignal').textContent = st.signal_quality ?? '--';
+            document.getElementById('devHeap').textContent = st.free_heap ? st.free_heap.toLocaleString() : '--';
+            document.getElementById('devFirmware').textContent = st.firmware_version || '--';
+            document.getElementById('devReadings').textContent = stats.total_readings?.toLocaleString() || '--';
+
+            if (st.uptime_seconds) {
+                const h = Math.floor(st.uptime_seconds / 3600);
+                const m = Math.floor((st.uptime_seconds % 3600) / 60);
+                document.getElementById('devUptime').textContent = `${h}h ${m}m`;
+            }
+        } catch (e) { console.error('Device status fetch failed:', e); }
+    }
+
+    // ---- Constants ----
+    const CIRCUMFERENCE = 2 * Math.PI * 55;
+    let POLL_INTERVAL = 3000;
+    let pollTimer = null;
+    let charts = {};
+    let lastLiveTimestamp = 0;  // Tracks when we last got LIVE data from device
+
+    // ---- DOM References ----
+    const rings = { ph: document.getElementById('phRing'), tds: document.getElementById('tdsRing'), temp: document.getElementById('tempRing'), turb: document.getElementById('turbRing'), do: document.getElementById('doRing') };
+    const values = { ph: document.getElementById('phValue'), tds: document.getElementById('tdsValue'), temp: document.getElementById('tempValue'), turb: document.getElementById('turbValue'), do: document.getElementById('doValue') };
+    const statuses = { ph: document.getElementById('phStatus'), tds: document.getElementById('tdsStatus'), temp: document.getElementById('tempStatus'), turb: document.getElementById('turbStatus'), do: document.getElementById('doStatus') };
+
+    // ---- Gauge Helpers ----
+    function setGaugeProgress(ring, percentage) { const c = Math.max(0, Math.min(1, percentage)); const p = c * CIRCUMFERENCE; ring.style.strokeDasharray = `${p} ${CIRCUMFERENCE - p}`; }
+    function getPhStatus(v) { if(v>=6.5&&v<=7.5) return{text:'Optimal',cls:'badge-optimal'}; if(v>=5.1&&v<=8.5) return{text:'Safe',cls:'badge-safe'}; if(v>=3.1&&v<=10.0) return{text:'Caution',cls:'badge-caution'}; return{text:'Danger',cls:'badge-danger'}; }
+    function getTdsStatus(v) { if(v<=50) return{text:'Excellent',cls:'badge-excellent'}; if(v<=150) return{text:'Good',cls:'badge-good'}; if(v<=300) return{text:'Fair',cls:'badge-fair'}; if(v<=600) return{text:'Poor',cls:'badge-poor'}; return{text:'Unsafe',cls:'badge-danger'}; }
+    function getTempStatus(v) { if(v>=20&&v<=30) return{text:'Normal',cls:'badge-good'}; if(v>=15&&v<=35) return{text:'Acceptable',cls:'badge-fair'}; return{text:'Extreme',cls:'badge-danger'}; }
+    function getTurbStatus(v) { if(v>=1500&&v<=2500) return{text:'Excellent',cls:'badge-excellent'}; if(v>=0&&v<1500) return{text:'Good',cls:'badge-good'}; if(v>=-2000&&v<0) return{text:'Caution',cls:'badge-caution'}; return{text:'Poor',cls:'badge-danger'}; }
+    function getDoStatus(v) { if(v>=8) return{text:'Excellent',cls:'badge-excellent'}; if(v>=5) return{text:'Good',cls:'badge-good'}; if(v>=3) return{text:'Fair',cls:'badge-fair'}; if(v>=1) return{text:'Poor',cls:'badge-poor'}; return{text:'Critical',cls:'badge-danger'}; }
+    function setStatus(el, s) { el.textContent = s.text; el.className = 'gauge-status badge ' + s.cls; }
+
+    function updateGauges(data, isLiveMessage = false) {
+        const sensors = data.sensors || {};
+        const meta = data.metadata || {};
+        const ph = sensors.ph?.value ?? 0, tds = sensors.tds?.value ?? 0;
+        const temp = sensors.temperature?.value ?? 0, turb = sensors.turbidity?.value ?? 0;
+        const dox = sensors.dissolved_oxygen?.value ?? 0;
+
+        values.ph.innerHTML = `${ph.toFixed(1)}<span class="unit">pH</span>`;
+        values.tds.innerHTML = `${tds.toFixed(0)}<span class="unit">ppm</span>`;
+        values.temp.innerHTML = `${temp.toFixed(1)}<span class="unit">°C</span>`;
+        values.turb.innerHTML = `${turb.toFixed(0)}<span class="unit">NTU</span>`;
+        values.do.innerHTML = `${dox.toFixed(1)}<span class="unit">mg/L</span>`;
+
+        setGaugeProgress(rings.ph, ph / 14);
+        setGaugeProgress(rings.tds, Math.min(tds / 1000, 1));
+        setGaugeProgress(rings.temp, temp / 50);
+        setGaugeProgress(rings.turb, Math.max(0, turb / 3000));
+        setGaugeProgress(rings.do, Math.min(dox / 15, 1));
+
+        setStatus(statuses.ph, getPhStatus(ph));
+        setStatus(statuses.tds, getTdsStatus(tds));
+        setStatus(statuses.temp, getTempStatus(temp));
+        setStatus(statuses.turb, getTurbStatus(turb));
+        setStatus(statuses.do, getDoStatus(dox));
+
+        document.getElementById('currentTemp').textContent = temp.toFixed(1);
+        document.getElementById('signalQuality').textContent = meta.signal_quality ?? '--';
+        document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+        document.getElementById('sidebarSignal').textContent = meta.signal_quality ?? '--';
+        document.getElementById('sidebarLast').textContent = new Date().toLocaleTimeString();
+
+        if (meta.uptime_seconds) {
+            const h = Math.floor(meta.uptime_seconds / 3600);
+            const m = Math.floor((meta.uptime_seconds % 3600) / 60);
+            const ut = `${h}h ${m}m`;
+            document.getElementById('deviceUptime').textContent = ut;
+            document.getElementById('sidebarUptime').textContent = ut;
+        }
+
+        // --- Unified staleness logic (same 120s threshold as /api/status) ---
+        // If this is a live WebSocket message, mark timestamp as NOW
+        if (isLiveMessage) {
+            lastLiveTimestamp = Date.now();
+        } else if (data.received_at) {
+            // For polled data, use the received_at from the server
+            const recMs = new Date(data.received_at).getTime();
+            if (!isNaN(recMs) && recMs > lastLiveTimestamp) {
+                lastLiveTimestamp = recMs;
+            }
+        }
+
+        const isDeviceOnline = lastLiveTimestamp > 0 && (Date.now() - lastLiveTimestamp < 12000);
+        const hasAnyData = ph > 0 || tds > 0 || temp > 0;
+
+        const dot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+
+        if (isDeviceOnline) {
+            dot.className = 'status-dot online';
+            statusText.textContent = 'Connected — System Active';
+            document.getElementById('sidebarStatus').textContent = 'ONLINE';
+            document.getElementById('sidebarStatus').style.color = 'var(--accent-emerald)';
+        } else if (hasAnyData) {
+            dot.className = 'status-dot offline';
+            statusText.textContent = 'Device Offline — Displaying Last Recorded Data';
+            document.getElementById('sidebarStatus').textContent = 'OFFLINE';
+            document.getElementById('sidebarStatus').style.color = 'var(--accent-rose)';
+        } else {
+            dot.className = 'status-dot offline';
+            statusText.textContent = 'Waiting for data...';
+            document.getElementById('sidebarStatus').textContent = 'OFFLINE';
+            document.getElementById('sidebarStatus').style.color = 'var(--accent-rose)';
+        }
+    }
+
+    // ---- Chart.js ----
+    function createChart(canvasId, label, color, yMin, yMax, yLabel) {
+        const ctx = document.getElementById(canvasId).getContext('2d');
+        return new Chart(ctx, {
+            type: 'line',
+            data: { labels: [], datasets: [{ label, data: [], borderColor: color, backgroundColor: color + '20', borderWidth: 2, fill: true, tension: 0.35, pointRadius: 2, pointHoverRadius: 5 }] },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { intersect: false, mode: 'index' },
+                scales: {
+                    x: { ticks: { color: '#64748b', maxTicksLimit: 10, font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+                    y: {
+                        suggestedMin: yMin,
+                        suggestedMax: yMax,
+                        title: { display: true, text: yLabel, color: '#64748b', font: { size: 11 } },
+                        ticks: { color: '#64748b', font: { size: 10 } },
+                        grid: { color: 'rgba(255,255,255,0.04)' }
+                    }
+                },
+                plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1e293b', titleColor: '#f1f5f9', bodyColor: '#94a3b8', borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1, cornerRadius: 8 } }
+            }
+        });
+    }
+
+    function initCharts() {
+        charts.ph   = createChart('phChart',   'pH',          '#3b82f6', 0,  14,   'pH');
+        charts.tds  = createChart('tdsChart',  'TDS (ppm)',   '#06b6d4', 0,  1000, 'ppm');
+        charts.temp = createChart('tempChart', 'Temp (°C)',   '#f59e0b', 0,  50,   '°C');
+        charts.turb = createChart('turbChart', 'Turbidity',   '#8b5cf6', 0,  5000, 'NTU');
+        charts.do   = createChart('doChart',   'DO (mg/L)',   '#10b981', -5, 15,   'mg/L');
+    }
+
+    function updateChart(chart, readings, key) {
+        if (!readings) return;
+        const labels = readings.map(r => {
+            const d = new Date(r.timestamp);
+            return isNaN(d) ? r.timestamp : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        });
+        chart.data.labels = labels;
+        chart.data.datasets[0].data = readings.map(r => r[key]);
+        chart.update();
+    }
+
+    // ---- Data Fetching ----
+    async function fetchLatest() {
+        try {
+            const resp = await fetch('/api/data/latest');
+            if (resp.ok) updateGauges(await resp.json());
+        } catch (e) {
+            console.warn('fetchLatest warning:', e);
+        }
+    }
+
+    async function fetchHistory() {
+        const ranges = { ph: document.getElementById('phTimeRange').value, tds: document.getElementById('tdsTimeRange').value, temp: document.getElementById('tempTimeRange').value, turb: document.getElementById('turbTimeRange').value, do: document.getElementById('doTimeRange').value };
+        const maxMinutes = Math.max(...Object.values(ranges).map(Number));
+        try {
+            const resp = await fetch(`/api/data/history?minutes=${maxMinutes}`);
+            if (resp.ok) {
+                const data = await resp.json();
+                const readings = data.readings || [];
+                document.getElementById('dataPoints').textContent = data.count;
+
+                const filterByMinutes = (arr, mins) => {
+                    if (!arr || arr.length === 0) return [];
+                    if (Number(mins) >= 10080) return arr;
+                    const latestMs = new Date(arr[arr.length - 1].timestamp).getTime();
+                    const cutoff = latestMs - mins * 60 * 1000;
+                    return arr.filter(r => new Date(r.timestamp).getTime() >= cutoff);
+                };
+
+                updateChart(charts.ph,   filterByMinutes(readings, ranges.ph),   'ph');
+                updateChart(charts.tds,  filterByMinutes(readings, ranges.tds),  'tds');
+                updateChart(charts.temp, filterByMinutes(readings, ranges.temp), 'temperature');
+                updateChart(charts.turb, filterByMinutes(readings, ranges.turb), 'turbidity');
+                updateChart(charts.do,   filterByMinutes(readings, ranges.do),   'dissolved_oxygen');
+            }
+        } catch (e) { console.error('Fetch history failed:', e); }
+    }
+
+    // ---- WebSocket Real-Time Client ----
+    let ws = null;
+
+    function initWebSocket() {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.host}/ws`;
+
+        try {
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                console.log('[WS] Connected to real-time server stream');
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const msg = JSON.parse(event.data);
+                    if (msg.type === 'sensor_update') {
+                        updateGauges(msg.data, true);
+                        fetchHistory(); // Refresh charts on new data point
+                    } else if (msg.type === 'status_update') {
+                        // Status heartbeat also proves device is alive
+                        lastLiveTimestamp = Date.now();
+                        if (msg.data.signal_quality !== undefined) {
+                            document.getElementById('signalQuality').textContent = msg.data.signal_quality;
+                            document.getElementById('sidebarSignal').textContent = msg.data.signal_quality;
+                        }
+                        if (msg.data.uptime_seconds !== undefined) {
+                            const h = Math.floor(msg.data.uptime_seconds / 3600);
+                            const m = Math.floor((msg.data.uptime_seconds % 3600) / 60);
+                            const ut = `${h}h ${m}m`;
+                            document.getElementById('deviceUptime').textContent = ut;
+                            document.getElementById('sidebarUptime').textContent = ut;
+                        }
+                        // Update dashboard status bar to reflect online
+                        const dot = document.getElementById('statusDot');
+                        const statusTextEl = document.getElementById('statusText');
+                        dot.className = 'status-dot online';
+                        statusTextEl.textContent = 'Connected — System Active';
+                        document.getElementById('sidebarStatus').textContent = 'ONLINE';
+                        document.getElementById('sidebarStatus').style.color = 'var(--accent-emerald)';
+                        // Also update Device Status page if it's visible
+                        if (document.getElementById('page-device').classList.contains('active')) {
+                            loadDeviceStatus();
+                        }
+                    } else if (msg.type === 'device_offline') {
+                        // ---- INSTANT OFFLINE: LWT triggered by broker ----
+                        console.log('[WS] Device offline event received (LWT)');
+                        lastLiveTimestamp = 0;  // Force staleness
+                        const dot = document.getElementById('statusDot');
+                        const statusTextEl = document.getElementById('statusText');
+                        dot.className = 'status-dot offline';
+                        statusTextEl.textContent = 'Device Offline — Connection Lost';
+                        document.getElementById('sidebarStatus').textContent = 'OFFLINE';
+                        document.getElementById('sidebarStatus').style.color = 'var(--accent-rose)';
+                        showToast('⚠️ Device disconnected', 'error');
+                        // Refresh Device Status page if visible
+                        if (document.getElementById('page-device').classList.contains('active')) {
+                            loadDeviceStatus();
+                        }
+                    }
+                } catch (e) {
+                    console.error('[WS] Parse error:', e);
+                }
+            };
+
+            ws.onclose = () => {
+                console.log('[WS] Disconnected. Reconnecting in 3 seconds...');
+                setTimeout(initWebSocket, 3000);
+            };
+
+            ws.onerror = () => {
+                ws.close();
+            };
+        } catch (e) {
+            console.error('[WS] Connection failed:', e);
+        }
+    }
+
+    function startPolling() {
+        pollTimer = setInterval(() => { fetchLatest(); fetchHistory(); }, POLL_INTERVAL);
+    }
+
+    // ---- Init ----
+    window.addEventListener('DOMContentLoaded', () => {
+        initCharts();
+        fetchLatest();
+        fetchHistory();
+        initWebSocket();
+        startPolling();
+    });
+</script>
+
+</body>
+</html>
