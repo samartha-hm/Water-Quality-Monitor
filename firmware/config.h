@@ -65,23 +65,27 @@
 // =============================================================
 
 // --- pH Calibration (quadratic: pH = a*V² + b*V + c) ---
+// Calibrated with lab reference (pH 7.97)
 #define PH_COEFF_A         -3.0951
 #define PH_COEFF_B          5.6410
-#define PH_COEFF_C          7.8516
+#define PH_COEFF_C          6.3216
 
-// --- TDS Calibration (cubic: TDS = a*V³ + b*V² + c*V, scaled by 0.5) ---
+// --- TDS Calibration (cubic: TDS = a*V³ + b*V² + c*V, scaled by 1.426) ---
+// Calibrated with lab reference (TDS 77.0 mg/L)
 #define TDS_COEFF_A         133.42
 #define TDS_COEFF_B        -255.86
 #define TDS_COEFF_C         857.39
-#define TDS_SCALE           0.5
+#define TDS_SCALE           1.426
 
 // --- Turbidity Calibration (quadratic: NTU = a*V² + b*V + c) ---
+// Calibrated with lab reference (Turbidity 0.4 NTU in clear water)
 #define TURB_COEFF_A       -1120.4
 #define TURB_COEFF_B        5742.3
-#define TURB_COEFF_C       -4352.9
+#define TURB_COEFF_C       -6748.5
 
 // --- Dissolved Oxygen (empirical: DO = a - b*T - c*TDS - d*Turb + e*pH) ---
-#define DO_CONST_A          14.6
+// Calibrated with lab reference (DO 7.2 mg/L at 27.4°C)
+#define DO_CONST_A          18.2573
 #define DO_CONST_B          0.41
 #define DO_CONST_C          0.0008
 #define DO_CONST_D          0.002

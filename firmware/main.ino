@@ -646,16 +646,19 @@ void readTurbidity() {
     int sensorValue = analogRead(TURBIDITY_PIN);
     float voltage = sensorValue * (VREF / ADC_RESOLUTION);
     float turbCalc = TURB_COEFF_A * voltage * voltage + TURB_COEFF_B * voltage + TURB_COEFF_C;
+    if (turbCalc < 0.0) turbCalc = 0.0;
     current.turbidity = turbCalc;
 }
 
 void calculateDissolvedOxygen() {
     // Empirical formula based on temperature, TDS, turbidity, and pH
-    current.dissolvedO2 = DO_CONST_A
-                        - (DO_CONST_B * current.temperature)
-                        - (DO_CONST_C * current.tds)
-                        - (DO_CONST_D * current.turbidity)
-                        + (DO_CONST_E * current.ph);
+    float doCalc = DO_CONST_A
+                 - (DO_CONST_B * current.temperature)
+                 - (DO_CONST_C * current.tds)
+                 - (DO_CONST_D * current.turbidity)
+                 + (DO_CONST_E * current.ph);
+    if (doCalc < 0.0) doCalc = 0.0;
+    current.dissolvedO2 = doCalc;
 }
 
 void readAllSensors() {
