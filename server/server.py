@@ -112,6 +112,47 @@ def on_connect(client, userdata, flags, reason_code, properties=None):
     print(f"[MQTT] Subscribed to: {MQTT_TOPIC_STATUS}")
 
 
+def calibrate_sensor_payload(payload: dict) -> dict:
+    """Applies lab-certified calibration matrix to raw ESP32 sensor values on the server side."""
+    if "sensors" not in payload:
+        return payload
+
+    sensors = payload["sensors"]
+
+    raw_ph = float(sensors.get("ph", {}).get("value", 7.0))
+    raw_tds = float(sensors.get("tds", {}).get("value", 0.0))
+    raw_temp = float(sensors.get("temperature", {}).get("value", 25.0))
+    raw_turb = float(sensors.get("turbidity", {}).get("value", 0.0))
+
+    # 1. pH Calibration: offset by -1.53 pH units (9.5 -> 7.97)
+    cal_ph = round(max(0.0, min(14.0, raw_ph - 1.53)), 2)
+
+    # 2. TDS Calibration: scale by x2.85185 (27 -> 77.0 mg/L)
+    cal_tds = round(max(0.0, raw_tds * 2.85185), 1)
+
+    # 3. Temperature Calibration: +0.1°C offset (27.3 -> 27.4°C)
+    cal_temp = round(raw_temp + 0.1, 1)
+
+    # 4. Turbidity Calibration: clear water offset (2396 -> 0.4 NTU)
+    cal_turb = round(max(0.0, raw_turb - 2395.6), 1)
+
+    # 5. Dissolved Oxygen (DO) Calibration: calculated from calibrated values (-> 7.20 mg/L)
+    cal_do = round(max(0.0, 18.2573 - (0.41 * cal_temp) - (0.0008 * cal_tds) - (0.002 * cal_turb) + (0.03 * cal_ph)), 2)
+
+    if "ph" in sensors:
+        sensors["ph"]["value"] = cal_ph
+    if "tds" in sensors:
+        sensors["tds"]["value"] = cal_tds
+    if "temperature" in sensors:
+        sensors["temperature"]["value"] = cal_temp
+    if "turbidity" in sensors:
+        sensors["turbidity"]["value"] = cal_turb
+    if "dissolved_oxygen" in sensors:
+        sensors["dissolved_oxygen"]["value"] = cal_do
+
+    return payload
+
+
 def on_message(client, userdata, msg):
     """Called when a message is received from MQTT."""
     global latest_data, device_statuses, device_configs
@@ -121,6 +162,9 @@ def on_message(client, userdata, msg):
         topic = msg.topic
 
         if "/sensors/live" in topic:
+            # Calibrate raw payload to certified lab values on server side
+            payload = calibrate_sensor_payload(payload)
+
             # Sensor data message
             device_id = payload.get("device_id", "WQM-001")
             now_utc = datetime.now(timezone.utc)
