@@ -805,13 +805,13 @@
         values.ph.innerHTML = `${ph.toFixed(1)}<span class="unit">pH</span>`;
         values.tds.innerHTML = `${tds.toFixed(0)}<span class="unit">ppm</span>`;
         values.temp.innerHTML = `${temp.toFixed(1)}<span class="unit">°C</span>`;
-        values.turb.innerHTML = `${turb.toFixed(0)}<span class="unit">NTU</span>`;
+        values.turb.innerHTML = `${turb.toFixed(1)}<span class="unit">NTU</span>`;
         values.do.innerHTML = `${dox.toFixed(1)}<span class="unit">mg/L</span>`;
 
         setGaugeProgress(rings.ph, ph / 14);
         setGaugeProgress(rings.tds, Math.min(tds / 1000, 1));
         setGaugeProgress(rings.temp, temp / 50);
-        setGaugeProgress(rings.turb, Math.max(0, turb / 3000));
+        setGaugeProgress(rings.turb, Math.min(Math.max(0, turb / 100), 1));
         setGaugeProgress(rings.do, Math.min(dox / 15, 1));
 
         setStatus(statuses.ph, getPhStatus(ph));
@@ -897,20 +897,52 @@
 
     function initCharts() {
         charts.ph   = createChart('phChart',   'pH',          '#3b82f6', 0,  14,   'pH');
-        charts.tds  = createChart('tdsChart',  'TDS (ppm)',   '#06b6d4', 0,  1000, 'ppm');
+        charts.tds  = createChart('tdsChart',  'TDS (ppm)',   '#06b6d4', 0,  300,  'ppm');
         charts.temp = createChart('tempChart', 'Temp (°C)',   '#f59e0b', 0,  50,   '°C');
-        charts.turb = createChart('turbChart', 'Turbidity',   '#8b5cf6', 0,  5000, 'NTU');
-        charts.do   = createChart('doChart',   'DO (mg/L)',   '#10b981', -5, 15,   'mg/L');
+        charts.turb = createChart('turbChart', 'Turbidity',   '#8b5cf6', 0,  5,    'NTU');
+        charts.do   = createChart('doChart',   'DO (mg/L)',   '#10b981', 0,  15,   'mg/L');
     }
 
     function updateChart(chart, readings, key) {
-        if (!readings) return;
+        if (!readings || readings.length === 0) return;
         const labels = readings.map(r => {
             const d = new Date(r.timestamp);
             return isNaN(d) ? r.timestamp : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         });
+        const dataVals = readings.map(r => r[key]);
         chart.data.labels = labels;
-        chart.data.datasets[0].data = readings.map(r => r[key]);
+        chart.data.datasets[0].data = dataVals;
+
+        // ---- Smart Dynamic Y-Axis Scaling ----
+        const validVals = dataVals.filter(v => v !== null && v !== undefined && !isNaN(v));
+        if (validVals.length > 0) {
+            const minVal = Math.min(...validVals);
+            const maxVal = Math.max(...validVals);
+            const span = maxVal - minVal;
+
+            if (key === 'turbidity') {
+                const margin = span < 0.5 ? 0.2 : span * 0.2;
+                chart.options.scales.y.suggestedMin = Math.max(0, Math.floor((minVal - margin) * 10) / 10);
+                chart.options.scales.y.suggestedMax = Math.ceil((maxVal + margin) * 10) / 10;
+            } else if (key === 'tds') {
+                const margin = span < 10 ? 5 : span * 0.15;
+                chart.options.scales.y.suggestedMin = Math.max(0, Math.floor(minVal - margin));
+                chart.options.scales.y.suggestedMax = Math.ceil(maxVal + margin);
+            } else if (key === 'ph') {
+                const margin = span < 0.5 ? 0.2 : span * 0.15;
+                chart.options.scales.y.suggestedMin = Math.max(0, Math.floor((minVal - margin) * 10) / 10);
+                chart.options.scales.y.suggestedMax = Math.min(14, Math.ceil((maxVal + margin) * 10) / 10);
+            } else if (key === 'temperature') {
+                const margin = span < 2 ? 1 : span * 0.15;
+                chart.options.scales.y.suggestedMin = Math.max(0, Math.floor(minVal - margin));
+                chart.options.scales.y.suggestedMax = Math.ceil(maxVal + margin);
+            } else if (key === 'dissolved_oxygen') {
+                const margin = span < 1 ? 0.5 : span * 0.15;
+                chart.options.scales.y.suggestedMin = Math.max(0, Math.floor((minVal - margin) * 10) / 10);
+                chart.options.scales.y.suggestedMax = Math.ceil((maxVal + margin) * 10) / 10;
+            }
+        }
+
         chart.update();
     }
 
