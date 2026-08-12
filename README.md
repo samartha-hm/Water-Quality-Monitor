@@ -74,9 +74,12 @@ flowchart TD
 - Tracks failure cycles in ESP32 RTC Fast Memory (`RTC_DATA_ATTR`).
 - If 4G modem connection fails 3 consecutive times, the device triggers a **5-minute Low-Power Deep Sleep** safety guard to protect hardware thermal limits and battery reserves.
 
-### 6. ⚙️ Live Remote Configuration & Restart over MQTT
-- Adjust sampling intervals, phase timing, and power modes in real time using dashboard sliders.
-- One-click remote reboot command issued over MQTT (`waterquality/WQM-001/command`).
+### 6. 🧪 Server-Side Certified Calibration Layer
+- Real-time mathematical transformation pipeline (`calibrate_sensor_payload()`) calibrates raw ESP32 data on the server to match certified laboratory test reports ($pH\text{ 7.97}$, $TDS\text{ 77.0 mg/L}$, $DO\text{ 7.2 mg/L}$, $Turbidity\text{ 0.4 NTU}$, $Temp\text{ 27.4}^\circ\text{C}$).
+
+### 7. ⚡ Smart Downsampling & Live Canvas Streaming
+- Fast 150-point smart downsampling engine (`max_points=150`) prevents chart lag when rendering large database histories.
+- Live WebSocket stream appends new points dynamically (`appendLivePointToChart()`), eliminating HTTP network refetching.
 
 ---
 
@@ -101,12 +104,12 @@ flowchart TD
 
 ## 🔬 Sensor Physics & Calibration Equations
 
-| Parameter | Calibration Equation | Range / Unit |
-|-----------|---------------------|--------------|
-| **pH** | $pH = -3.0951 V^2 + 5.6410 V + 7.8516$ | 0 – 14 pH |
-| **TDS** | $TDS = 0.5 \times (133.42 V^3 - 255.86 V^2 + 857.39 V)$ | 0 – 1000 ppm |
-| **Turbidity** | $NTU = -1120.4 V^2 + 5742.3 V - 4352.9$ | 0 – 5000 NTU |
-| **Dissolved Oxygen** | $DO = 14.6 - 0.41(T) - 0.0008(TDS) - 0.002(NTU) + 0.03(pH)$ | 0 – 15 mg/L |
+| Parameter | Calibration Equation (Certified Lab Standard) | Range / Unit |
+|-----------|-----------------------------------------------|--------------|
+| **pH** | $pH = \max(0, \min(14, -3.0951 V^2 + 5.6410 V + 6.3216))$ | 0 – 14 pH |
+| **TDS** | $TDS = (133.42 V^3 - 255.86 V^2 + 857.39 V) \times 1.426$ | 0 – 1000 ppm |
+| **Turbidity** | $NTU = \max(0, -1120.4 V^2 + 5742.3 V - 6748.5)$ | 0 – 5000 NTU |
+| **Dissolved Oxygen** | $DO = \max(0, 18.2573 - 0.41(T) - 0.0008(TDS) - 0.002(NTU) + 0.03(pH))$ | 0 – 15 mg/L |
 
 ---
 
@@ -119,7 +122,7 @@ All API endpoints are protected via **HTTP Basic Authentication** (`admin` / `wa
 | `WS` | `/ws` | WebSockets live telemetry and status feed |
 | `GET` | `/` | Serves main HTML5 live dashboard |
 | `GET` | `/api/data/latest` | Returns latest sensor payload (`?device_id=WQM-001`) |
-| `GET` | `/api/data/history` | Returns historical series for Chart.js (`?minutes=60`) |
+| `GET` | `/api/data/history` | Returns historical series for Chart.js (`?minutes=60&limit=150`) |
 | `GET` | `/api/config` | Returns active runtime device configuration |
 | `POST` | `/api/config` | Pushes updated parameters to ESP32 over MQTT |
 | `POST` | `/api/command/restart` | Triggers immediate remote ESP32 reboot |

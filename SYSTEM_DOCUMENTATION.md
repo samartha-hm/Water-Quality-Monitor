@@ -49,6 +49,12 @@ Broadcasts live sensor readings and status updates directly to connected web cli
 ### 4. Database Config Persistence
 Stores device configurations in SQLite (`device_config` table). Settings remain saved on the server across FastAPI and AWS EC2 restarts.
 
+### 5. Server-Side Certified Calibration Layer
+Applies real-time mathematical transformation (`calibrate_sensor_payload()`) to incoming raw MQTT payloads on the server. Calibrates raw hardware readings to match certified laboratory reference test values ($pH\text{ 7.97}$, $TDS\text{ 77.0 mg/L}$, $DO\text{ 7.2 mg/L}$, $Turbidity\text{ 0.4 NTU}$, $Temp\text{ 27.4}^\circ\text{C}$) without requiring physical access to re-flash the ESP32 microcontroller.
+
+### 6. Smart Server Downsampling & Live Point Streaming
+The `/api/data/history` endpoint automatically downsamples large historical datasets to a clean maximum of 150 points (`max_points=150`) across any selected time window (1 hour to All-Time). Live WebSocket messages append new points dynamically on the client canvas (`appendLivePointToChart()`), delivering zero-lag line chart rendering without HTTP network refetching.
+
 ---
 
 ## 📡 MQTT Topic Architecture
@@ -111,11 +117,11 @@ Stores device configurations in SQLite (`device_config` table). Settings remain 
 - **PHASE_BUFFER**: Both probes off. Residual electrical charge in water dissipates.
 - **PHASE_TDS**: TDS relay (GPIO26) is closed (ON). TDS probe is sampled.
 
-### 2. Formulas
-- **pH**: `pH = -3.0951 * V^2 + 5.6410 * V + 7.8516`
-- **TDS**: `TDS = 0.5 * (133.42 * V^3 - 255.86 * V^2 + 857.39 * V)`
-- **Turbidity**: `NTU = -1120.4 * V^2 + 5742.3 * V - 4352.9`
-- **Dissolved Oxygen**: `DO = 14.6 - (0.41 * T) - (0.0008 * TDS) - (0.002 * NTU) + (0.03 * pH)`
+### 2. Certified Calibration Formulas (Lab Verified)
+- **pH**: `pH = max(0, min(14, -3.0951 * V^2 + 5.6410 * V + 6.3216))`  *(Calibrated offset -1.530)*
+- **TDS**: `TDS = (133.42 * V^3 - 255.86 * V^2 + 857.39 * V) * 1.426`  *(Calibrated scale x2.852)*
+- **Turbidity**: `NTU = max(0, -1120.4 * V^2 + 5742.3 * V - 6748.5)`  *(Calibrated clear-water offset)*
+- **Dissolved Oxygen**: `DO = max(0, 18.2573 - (0.41 * T) - (0.0008 * TDS) - (0.002 * NTU) + (0.03 * pH))`  *(Calibrated base constant)*
 
 ---
 
@@ -128,7 +134,7 @@ All endpoints require HTTP Basic Auth (`admin` / `waterquality`).
 | `WS` | `/ws` | WebSockets live telemetry & status stream | JSON broadcast |
 | `GET` | `/` | Serves the main HTML5 dashboard | HTML Web Page |
 | `GET` | `/api/data/latest` | Returns most recent 5-sensor reading | `?device_id=WQM-001` |
-| `GET` | `/api/data/history` | Returns historical readings for charts | `?minutes=60&device_id=WQM-001` |
+| `GET` | `/api/data/history` | Returns historical readings for charts (smart downsampled to limit) | `?minutes=60&limit=150&device_id=WQM-001` |
 | `GET` | `/api/config` | Returns current device runtime config | JSON config object |
 | `POST` | `/api/config` | Pushes runtime config update via MQTT | JSON body |
 | `POST` | `/api/command/restart` | Sends remote restart command via MQTT | `{"command": "restart"}` |
