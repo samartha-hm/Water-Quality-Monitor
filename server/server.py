@@ -433,9 +433,9 @@ async def api_latest_data(device_id: str = "WQM-001"):
 
 
 @app.get("/api/data/history")
-async def api_history(minutes: int = 10080, device_id: str = "WQM-001"):
-    """Get historical sensor data for chart rendering."""
-    readings = db.get_readings_history(minutes=minutes, device_id=device_id)
+async def api_history(minutes: int = 60, device_id: str = "WQM-001", limit: int = 150):
+    """Get historical sensor data for chart rendering with smart downsampling."""
+    readings = db.get_readings_history(minutes=minutes, device_id=device_id, max_points=limit)
     return {
         "device_id": device_id,
         "minutes": minutes,

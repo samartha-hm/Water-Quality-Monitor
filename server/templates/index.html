@@ -533,11 +533,11 @@
 
             <!-- CHARTS -->
             <div class="charts-grid">
-                <div class="chart-card"><div class="chart-header"><h3 class="chart-title">📈 pH Level</h3><select class="time-select" id="phTimeRange" onchange="fetchHistory()"><option value="10080" selected>All Time</option><option value="5">5 min</option><option value="15">15 min</option><option value="30">30 min</option><option value="60">1 hour</option><option value="1440">1 day</option></select></div><div class="chart-canvas-wrapper"><canvas id="phChart"></canvas></div></div>
-                <div class="chart-card"><div class="chart-header"><h3 class="chart-title">📊 TDS Level</h3><select class="time-select" id="tdsTimeRange" onchange="fetchHistory()"><option value="10080" selected>All Time</option><option value="5">5 min</option><option value="15">15 min</option><option value="30">30 min</option><option value="60">1 hour</option><option value="1440">1 day</option></select></div><div class="chart-canvas-wrapper"><canvas id="tdsChart"></canvas></div></div>
-                <div class="chart-card"><div class="chart-header"><h3 class="chart-title">🌡️ Temperature</h3><select class="time-select" id="tempTimeRange" onchange="fetchHistory()"><option value="10080" selected>All Time</option><option value="5">5 min</option><option value="15">15 min</option><option value="30">30 min</option><option value="60">1 hour</option><option value="1440">1 day</option></select></div><div class="chart-canvas-wrapper"><canvas id="tempChart"></canvas></div></div>
-                <div class="chart-card"><div class="chart-header"><h3 class="chart-title">🌫️ Turbidity</h3><select class="time-select" id="turbTimeRange" onchange="fetchHistory()"><option value="10080" selected>All Time</option><option value="5">5 min</option><option value="15">15 min</option><option value="30">30 min</option><option value="60">1 hour</option><option value="1440">1 day</option></select></div><div class="chart-canvas-wrapper"><canvas id="turbChart"></canvas></div></div>
-                <div class="chart-card" style="grid-column: 1 / -1;"><div class="chart-header"><h3 class="chart-title">💨 Dissolved Oxygen</h3><select class="time-select" id="doTimeRange" onchange="fetchHistory()"><option value="10080" selected>All Time</option><option value="5">5 min</option><option value="15">15 min</option><option value="30">30 min</option><option value="60">1 hour</option><option value="1440">1 day</option></select></div><div class="chart-canvas-wrapper"><canvas id="doChart"></canvas></div></div>
+                <div class="chart-card"><div class="chart-header"><h3 class="chart-title">📈 pH Level</h3><select class="time-select" id="phTimeRange" onchange="fetchHistory()"><option value="60" selected>1 hour</option><option value="5">5 min</option><option value="15">15 min</option><option value="30">30 min</option><option value="1440">1 day</option><option value="10080">All Time</option></select></div><div class="chart-canvas-wrapper"><canvas id="phChart"></canvas></div></div>
+                <div class="chart-card"><div class="chart-header"><h3 class="chart-title">📊 TDS Level</h3><select class="time-select" id="tdsTimeRange" onchange="fetchHistory()"><option value="60" selected>1 hour</option><option value="5">5 min</option><option value="15">15 min</option><option value="30">30 min</option><option value="1440">1 day</option><option value="10080">All Time</option></select></div><div class="chart-canvas-wrapper"><canvas id="tdsChart"></canvas></div></div>
+                <div class="chart-card"><div class="chart-header"><h3 class="chart-title">🌡️ Temperature</h3><select class="time-select" id="tempTimeRange" onchange="fetchHistory()"><option value="60" selected>1 hour</option><option value="5">5 min</option><option value="15">15 min</option><option value="30">30 min</option><option value="1440">1 day</option><option value="10080">All Time</option></select></div><div class="chart-canvas-wrapper"><canvas id="tempChart"></canvas></div></div>
+                <div class="chart-card"><div class="chart-header"><h3 class="chart-title">🌫️ Turbidity</h3><select class="time-select" id="turbTimeRange" onchange="fetchHistory()"><option value="60" selected>1 hour</option><option value="5">5 min</option><option value="15">15 min</option><option value="30">30 min</option><option value="1440">1 day</option><option value="10080">All Time</option></select></div><div class="chart-canvas-wrapper"><canvas id="turbChart"></canvas></div></div>
+                <div class="chart-card" style="grid-column: 1 / -1;"><div class="chart-header"><h3 class="chart-title">💨 Dissolved Oxygen</h3><select class="time-select" id="doTimeRange" onchange="fetchHistory()"><option value="60" selected>1 hour</option><option value="5">5 min</option><option value="15">15 min</option><option value="30">30 min</option><option value="1440">1 day</option><option value="10080">All Time</option></select></div><div class="chart-canvas-wrapper"><canvas id="doChart"></canvas></div></div>
             </div>
         </div>
 
@@ -983,6 +983,22 @@
         } catch (e) { console.error('Fetch history failed:', e); }
     }
 
+    function appendLivePointToChart(chart, timestampStr, val) {
+        if (!chart || val === undefined || val === null || isNaN(val)) return;
+        const d = new Date(timestampStr);
+        const labelStr = isNaN(d) ? timestampStr : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+        chart.data.labels.push(labelStr);
+        chart.data.datasets[0].data.push(val);
+
+        if (chart.data.labels.length > 150) {
+            chart.data.labels.shift();
+            chart.data.datasets[0].data.shift();
+        }
+
+        chart.update('none');
+    }
+
     // ---- WebSocket Real-Time Client ----
     let ws = null;
 
@@ -1002,7 +1018,13 @@
                     const msg = JSON.parse(event.data);
                     if (msg.type === 'sensor_update') {
                         updateGauges(msg.data, true);
-                        fetchHistory(); // Refresh charts on new data point
+                        const sensors = msg.data.sensors || {};
+                        const ts = msg.data.received_at || new Date().toISOString();
+                        if (sensors.ph?.value !== undefined) appendLivePointToChart(charts.ph, ts, sensors.ph.value);
+                        if (sensors.tds?.value !== undefined) appendLivePointToChart(charts.tds, ts, sensors.tds.value);
+                        if (sensors.temperature?.value !== undefined) appendLivePointToChart(charts.temp, ts, sensors.temperature.value);
+                        if (sensors.turbidity?.value !== undefined) appendLivePointToChart(charts.turb, ts, sensors.turbidity.value);
+                        if (sensors.dissolved_oxygen?.value !== undefined) appendLivePointToChart(charts.do, ts, sensors.dissolved_oxygen.value);
                     } else if (msg.type === 'status_update') {
                         // Status heartbeat also proves device is alive
                         lastLiveTimestamp = Date.now();

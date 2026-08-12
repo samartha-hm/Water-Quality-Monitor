@@ -232,10 +232,9 @@ def get_latest_reading(device_id: str = "WQM-001") -> Optional[dict]:
     return None
 
 
-def get_readings_history(minutes: int = 10080, device_id: str = "WQM-001") -> list:
-    """Get sensor readings for a device.
-    If minutes >= 10080 or <= 0, returns ALL historical readings from database.
-    Otherwise filters by timestamp >= cutoff, falling back to all stored readings if empty."""
+def get_readings_history(minutes: int = 60, device_id: str = "WQM-001", max_points: int = 150) -> list:
+    """Get sensor readings for a device with smart even downsampling to max_points.
+    If minutes >= 10080 or <= 0, returns historical readings from database up to max_points."""
     with get_db() as conn:
         if minutes >= 10080 or minutes <= 0:
             rows = conn.execute("""
@@ -244,28 +243,40 @@ def get_readings_history(minutes: int = 10080, device_id: str = "WQM-001") -> li
                 WHERE device_id = ?
                 ORDER BY timestamp ASC
             """, (device_id,)).fetchall()
-            return [dict(row) for row in rows]
+        else:
+            cutoff = (datetime.now(timezone.utc) - timedelta(minutes=minutes)).isoformat()
+            rows = conn.execute("""
+                SELECT timestamp, ph, tds, temperature, turbidity, dissolved_oxygen
+                FROM sensor_readings
+                WHERE device_id = ? AND timestamp >= ?
+                ORDER BY timestamp ASC
+            """, (device_id, cutoff)).fetchall()
 
-        cutoff = (datetime.now(timezone.utc) - timedelta(minutes=minutes)).isoformat()
-        rows = conn.execute("""
-            SELECT timestamp, ph, tds, temperature, turbidity, dissolved_oxygen
-            FROM sensor_readings
-            WHERE device_id = ? AND timestamp >= ?
-            ORDER BY timestamp ASC
-        """, (device_id, cutoff)).fetchall()
+            if not rows:
+                # Fallback if cutoff filtered out all historical data
+                rows = conn.execute("""
+                    SELECT timestamp, ph, tds, temperature, turbidity, dissolved_oxygen
+                    FROM sensor_readings
+                    WHERE device_id = ?
+                    ORDER BY timestamp ASC
+                """, (device_id,)).fetchall()
 
-        if rows:
-            return [dict(row) for row in rows]
+        all_readings = [dict(row) for row in rows]
+        total = len(all_readings)
 
-        # Fallback if cutoff filtered out all historical data: return all stored readings
-        fallback_rows = conn.execute("""
-            SELECT timestamp, ph, tds, temperature, turbidity, dissolved_oxygen
-            FROM sensor_readings
-            WHERE device_id = ?
-            ORDER BY timestamp ASC
-        """, (device_id,)).fetchall()
+        # Smart Downsampling: step-sample if dataset size exceeds max_points
+        if total > max_points and max_points > 0:
+            step = total / float(max_points)
+            downsampled = []
+            for i in range(max_points):
+                idx = min(total - 1, int(i * step))
+                downsampled.append(all_readings[idx])
+            # Ensure latest reading is always included
+            if downsampled and downsampled[-1] != all_readings[-1]:
+                downsampled[-1] = all_readings[-1]
+            return downsampled
 
-        return [dict(row) for row in fallback_rows]
+        return all_readings
 
 
 def get_device_status(device_id: str = "WQM-001") -> Optional[dict]:
