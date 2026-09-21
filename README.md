@@ -1,5 +1,5 @@
 # 🌊 Water Quality Monitor v2.0
-> **R&D, System Architecture & Engineering by Samartha H M** — Industrial-Grade, 4G/LTE-Connected Multi-Parameter Water Quality Intelligence Platform.
+> **R&D, System Architecture & Engineering by Samartha H M** — Industrial-Grade, 4G/LTE-Connected Multi-Parameter Pond Intelligence Platform.
 
 [![ESP32](https://img.shields.io/badge/Microcontroller-ESP32-blue?logo=espressif&logoColor=white)](https://www.espressif.com/)
 [![Cellular](https://img.shields.io/badge/Connectivity-4G%2FLTE%20(SIMA7670C)-orange?logo=4g&logoColor=white)]()

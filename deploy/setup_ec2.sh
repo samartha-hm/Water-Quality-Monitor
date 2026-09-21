@@ -152,7 +152,7 @@ deactivate
 echo "[6/7] Creating systemd service..."
 cat > /etc/systemd/system/waterquality.service << EOF
 [Unit]
-Description=Water Quality Monitor Server
+Description=Water Quality Pond Intelligence Server
 After=network.target mosquitto.service
 Requires=mosquitto.service
 
