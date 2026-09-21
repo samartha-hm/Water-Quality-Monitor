@@ -188,6 +188,11 @@ sudo systemctl start wqm-server
 Navigate to `http://<YOUR-EC2-PUBLIC-IP>:8000`  
 Credentials: Username: `admin` | Password: `waterquality`
 
+### 4. Manual GitHub Actions Deployment
+- Configure repository secrets: `EC2_HOST`, `EC2_USER`, `EC2_PORT`, `EC2_PPK_KEY`.
+- Run **Actions → Manual EC2 Deploy → Run workflow**.
+- Ensure the EC2 security group allows inbound TCP **22** (SSH) and **8000** (dashboard).
+
 ---
 
 ## 🛡️ Security Best Practices
