@@ -1,5 +1,5 @@
 # 🌊 Water Quality Monitor v2.0 — Complete System Documentation
-**R&D, System Architecture & Engineering by Samartha H M**
+**Industrial-Grade, 4G/LTE-Connected Multi-Parameter Pond Intelligence Platform**
 
 ---
 
@@ -20,12 +20,11 @@ Data is gathered by an **ESP32 microcontroller** using **phase-multiplexing** to
 
 | Parameter | Value / Setting | Description |
 |-----------|-----------------|-------------|
-| **R&D & Lead Architect** | `Samartha H M` | Research, Hardware Design & Software Development |
-| **AWS Server Public IP** | `52.72.99.15` | EC2 Instance IP |
-| **Dashboard URL** | `http://52.72.99.15:8000` | Web Interface |
+| **AWS Server Public IP** | `<YOUR-EC2-PUBLIC-IP>` | EC2 Instance IP |
+| **Dashboard URL** | `http://<YOUR-EC2-PUBLIC-IP>:8000` | Web Interface |
 | **Dashboard Username** | `admin` | HTTP Basic Auth User |
-| **Dashboard Password** | `waterquality` | HTTP Basic Auth Pass |
-| **MQTT Broker Host** | `52.72.99.15` | Mosquitto Broker |
+| **Dashboard Password** | `waterquality` | HTTP Basic Auth Pass (configurable) |
+| **MQTT Broker Host** | `<YOUR-EC2-PUBLIC-IP>` | Mosquitto Broker |
 | **MQTT Broker Port** | `1883` | Unencrypted TCP |
 | **Cellular APN** | `airtelgprs.com` | Airtel India 4G |
 | **Device ID** | `WQM-001` | Unique Hardware ID |

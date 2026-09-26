@@ -1,5 +1,5 @@
 # 🌊 Water Quality Monitor v2.0
-> **R&D, System Architecture & Engineering by Samartha H M** — Industrial-Grade, 4G/LTE-Connected Multi-Parameter Pond Intelligence Platform.
+> Industrial-Grade, 4G/LTE-Connected Multi-Parameter Pond Intelligence Platform.
 
 [![ESP32](https://img.shields.io/badge/Microcontroller-ESP32-blue?logo=espressif&logoColor=white)](https://www.espressif.com/)
 [![Cellular](https://img.shields.io/badge/Connectivity-4G%2FLTE%20(SIMA7670C)-orange?logo=4g&logoColor=white)]()
@@ -148,7 +148,8 @@ WaterQualityMonitor/
 │       └── index.html         # Live Glassmorphism Dashboard
 ├── deploy/
 │   ├── setup_ec2.sh           # AWS EC2 automated setup script
-│   └── wqm-server.service     # Systemd production service unit
+│   ├── mosquitto.conf         # Mosquitto broker configuration
+│   └── README.md              # Detailed AWS deployment guide
 ├── LOCAL_SETUP.md             # Local developer setup guide
 ├── SYSTEM_DOCUMENTATION.md    # Complete system engineering specification
 ├── README.md                  # Main repository README
@@ -170,18 +171,10 @@ WaterQualityMonitor/
 ```bash
 # Clone or upload repository to AWS EC2
 git clone https://github.com/samartha-hm/Water-Quality-Monitor.git
-cd Water-Quality-Monitor/server
-
-# Set up Python virtual environment
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-
-# Start systemd service
-sudo cp ../deploy/wqm-server.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable wqm-server
-sudo systemctl start wqm-server
+# Set up server and start service using the automated script
+cd Water-Quality-Monitor/deploy
+chmod +x setup_ec2.sh
+sudo ./setup_ec2.sh
 ```
 
 ### 3. Open Web Dashboard
@@ -198,7 +191,6 @@ Credentials: Username: `admin` | Password: `waterquality`
 
 ---
 
-## 📜 License & Citation
+## 📜 License
 
-Copyright © 2026 **Samartha H M**. Designed, Researched & Developed by Samartha H M.  
 This project is licensed under the [MIT License](LICENSE).

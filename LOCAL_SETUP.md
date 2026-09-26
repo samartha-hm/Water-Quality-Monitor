@@ -58,7 +58,7 @@ winget install Eclipse.Mosquitto
 
 ## Step 3: Run the Local Python Server & Dashboard
 
-1. Open Command Prompt / Terminal in your project directory `E:\experimindlabs\WaterQualityMonitor`.
+1. Open Command Prompt / Terminal in your cloned repository directory.
 2. Install Python dependencies:
    ```cmd
    cd server

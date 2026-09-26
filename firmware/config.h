@@ -39,12 +39,12 @@
 // =============================================================
 // 3. MQTT BROKER (Mosquitto on AWS EC2)
 // =============================================================
-#define MQTT_BROKER         "52.72.99.15"   // AWS EC2 Public IP
+#define MQTT_BROKER         "YOUR_AWS_EC2_PUBLIC_IP"   // Replace with your AWS EC2 Public IP / Elastic IP
 #define MQTT_PORT           1883
 #define MQTT_CLIENT_ID      DEVICE_ID
 #define MQTT_USERNAME       ""      // Leave empty if no auth
 #define MQTT_PASSWORD       ""      // Leave empty if no auth
-#define MQTT_KEEPALIVE      60      // seconds
+#define MQTT_KEEPALIVE      15      // seconds (broker detects disconnect in ~22s)
 
 // --- MQTT Topics ---
 #define MQTT_TOPIC_SENSORS  "waterquality/" DEVICE_ID "/sensors/live"

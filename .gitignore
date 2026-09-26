@@ -45,3 +45,14 @@ firmware/**/build/
 firmware/**/sketch/
 *.bin
 *.elf
+
+# Security & Credentials
+*.pem
+*.key
+*.ppk
+*.pub
+*.crt
+.env
+.env.*
+passwd
+
