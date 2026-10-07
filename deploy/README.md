@@ -8,6 +8,11 @@ Step-by-step instructions to deploy the Water Quality Monitor server on AWS EC2 
 
 - An AWS account
 - Basic familiarity with the AWS Console and SSH
+- GitHub repository secrets configured:
+  - `EC2_HOST`
+  - `EC2_USER`
+  - `EC2_PORT`
+  - `EC2_PPK_KEY` (full PuTTY `.ppk` key text)
 
 ---
 
@@ -30,6 +35,11 @@ Step-by-step instructions to deploy the Water Quality Monitor server on AWS EC2 
 | Custom TCP | 8000 | 0.0.0.0/0 | Dashboard        |
 
 3. Click **Launch Instance**
+
+> [!IMPORTANT]
+> Your EC2 security group must allow inbound:
+> - **SSH (TCP 22)** for deployment access
+> - **Dashboard (TCP 8000)** for web access
 
 ## 2. Assign an Elastic IP
 
@@ -112,6 +122,29 @@ In `firmware/config.h`, set:
 ```
 
 Flash the firmware and power on — data should appear in the dashboard.
+
+---
+
+## Manual Deployment from GitHub Actions (Recommended)
+
+This repository includes a manual-only workflow:
+
+- **Workflow file:** `.github/workflows/deploy-ec2-manual.yml`
+- **Trigger:** `workflow_dispatch` only (runs only when manually approved/run)
+
+### Run steps
+1. Open **GitHub → Actions → Manual EC2 Deploy**.
+2. Click **Run workflow**.
+3. Select the branch and confirm the run.
+
+### What it does
+- Uses a GitHub-hosted Ubuntu runner.
+- Installs `putty-tools` and converts `EC2_PPK_KEY` to a temporary OpenSSH key in runner temp storage.
+- Uses strict SSH host-key checking with a generated `known_hosts` entry.
+- Securely copies `server/` and `deploy/` to the EC2 host over SSH.
+- Runs `deploy/setup_ec2.sh`, then restarts and verifies the `waterquality` service.
+
+> The workflow does not hardcode host/user/port/key values and does not print secret values.
 
 ---
 

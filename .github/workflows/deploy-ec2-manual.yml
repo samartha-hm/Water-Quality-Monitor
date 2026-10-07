@@ -1,0 +1,116 @@
+---
+name: Manual EC2 Deploy
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy to EC2 over SSH
+    runs-on: ubuntu-latest
+    environment: production
+
+    env:
+      EC2_HOST: ${{ secrets.EC2_HOST }}
+      EC2_USER: ${{ secrets.EC2_USER }}
+      EC2_PORT: ${{ secrets.EC2_PORT }}
+      EC2_PPK_KEY: ${{ secrets.EC2_PPK_KEY }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate required secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          for var in EC2_HOST EC2_USER EC2_PORT EC2_PPK_KEY; do
+            if [[ -z "${!var:-}" ]]; then
+              echo "Missing required secret: $var" >&2
+              exit 1
+            fi
+          done
+
+      - name: Install PuTTY conversion tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends putty-tools
+
+      - name: Convert PPK key and register host key
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+
+          PPK_FILE="$RUNNER_TEMP/ec2-key.ppk"
+          SSH_KEY_FILE="$RUNNER_TEMP/ec2-key"
+          KNOWN_HOSTS_FILE="$RUNNER_TEMP/known_hosts"
+
+          printf '%s' "$EC2_PPK_KEY" > "$PPK_FILE"
+          puttygen "$PPK_FILE" -O private-openssh -o "$SSH_KEY_FILE"
+          chmod 600 "$SSH_KEY_FILE"
+
+          # Security note:
+          # We require strict host-key checking and use ssh-keyscan
+          # to seed known_hosts.
+          # For stronger protection against first-connection MITM,
+          # pin the expected host key
+          # in a secret and compare it before appending to known_hosts.
+          ssh-keyscan -p "$EC2_PORT" -H "$EC2_HOST" > "$KNOWN_HOSTS_FILE"
+          chmod 600 "$KNOWN_HOSTS_FILE"
+
+          {
+            echo "SSH_KEY_FILE=$SSH_KEY_FILE"
+            echo "KNOWN_HOSTS_FILE=$KNOWN_HOSTS_FILE"
+          } >> "$GITHUB_ENV"
+
+      - name: Upload server and deploy directories
+        shell: bash
+        run: |
+          set -euo pipefail
+          scp \
+            -i "$SSH_KEY_FILE" \
+            -P "$EC2_PORT" \
+            -o BatchMode=yes \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$KNOWN_HOSTS_FILE" \
+            -r server deploy \
+            "$EC2_USER@$EC2_HOST:~/"
+
+      - name: Run remote deployment script and verify service
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh \
+            -i "$SSH_KEY_FILE" \
+            -p "$EC2_PORT" \
+            -o BatchMode=yes \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$KNOWN_HOSTS_FILE" \
+            "$EC2_USER@$EC2_HOST" <<'REMOTE'
+          set -euo pipefail
+          cd "$HOME/deploy"
+          chmod +x setup_ec2.sh
+          sudo ./setup_ec2.sh
+          sudo systemctl daemon-reload
+          sudo systemctl restart waterquality
+          sudo systemctl is-active --quiet waterquality
+          sudo systemctl status waterquality --no-pager -l
+          REMOTE
+
+      - name: Remove temporary key material
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f \
+            "$RUNNER_TEMP/ec2-key.ppk" \
+            "$RUNNER_TEMP/ec2-key" \
+            "$RUNNER_TEMP/known_hosts"
